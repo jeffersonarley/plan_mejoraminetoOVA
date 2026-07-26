@@ -1,10 +1,16 @@
- <template>
+<template>
   <div id="app-shell">
     <!-- Fondo ambiental espacial con estrellas móviles y aurora boreal -->
     <div class="ambient-bg" aria-hidden="true">
       <div class="glow glow-blue"></div>
       <div class="glow glow-green"></div>
       <div class="glow glow-accent"></div>
+    </div>
+
+    <!-- Cohete volador de fondo -->
+    <div class="flying-rocket" aria-hidden="true">
+      <div class="rocket-body">🚀</div>
+      <div class="rocket-trail"></div>
     </div>
 
     <!-- Partículas flotantes de energía -->
@@ -17,7 +23,7 @@
       <div class="header-inner">
         <div class="brand">
           <div class="brand-mark-container">
-            <span class="brand-mark" aria-hidden="true">🚀</span>
+            <span class="brand-mark" aria-hidden="true">🛸</span>
           </div>
           <div class="brand-text">
             <h1>OVA · Módulo de Estudio</h1>
@@ -40,7 +46,7 @@
         </button>
       </div>
 
-      <!-- Navegación por Pasos del OVA (Sin línea central atravesada) -->
+      <!-- Navegación por Pasos del OVA -->
       <nav
         id="stepper-nav"
         class="stepper"
@@ -204,7 +210,7 @@ body {
   animation: starsMove 80s linear infinite;
   opacity: 0.45;
   pointer-events: none;
-  z-index: -2;
+  z-index: 0;
 }
 
 @keyframes starsMove {
@@ -212,11 +218,58 @@ body {
   to { transform: translateY(-800px); }
 }
 
+/* ===== Cohete Volador de Fondo ===== */
+.flying-rocket {
+  position: fixed;
+  top: 20%;
+  left: 10%;
+  z-index: 1; /* Posicionado por encima del fondo pero detrás de la tarjeta */
+  pointer-events: none;
+  animation: floatRandom 18s ease-in-out infinite alternate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 0 20px rgba(0, 183, 255, 0.9));
+}
+
+.rocket-body {
+  font-size: 3.5rem;
+  transform: rotate(-45deg);
+}
+
+.rocket-trail {
+  width: 6px;
+  height: 80px;
+  background: linear-gradient(to bottom, transparent, var(--accent-neon), #00e5ff);
+  border-radius: 4px;
+  box-shadow: 0 0 20px var(--accent-neon);
+  transform: rotate(-45deg) translateY(-15px);
+  opacity: 0.95;
+}
+
+@keyframes floatRandom {
+  0% {
+    transform: translate(0vw, 0vh) rotate(-15deg) scale(0.9);
+  }
+  25% {
+    transform: translate(65vw, 35vh) rotate(35deg) scale(1.1);
+  }
+  50% {
+    transform: translate(30vw, 65vh) rotate(-45deg) scale(1);
+  }
+  75% {
+    transform: translate(75vw, 15vh) rotate(15deg) scale(1.05);
+  }
+  100% {
+    transform: translate(10vw, 55vh) rotate(-30deg) scale(0.95);
+  }
+}
+
 /* ===== Aurora Boreal Animada ===== */
 .ambient-bg {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
   pointer-events: none;
 }
@@ -566,7 +619,7 @@ body {
   margin: 0 auto;
   padding: 3rem 2rem 4rem;
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .content-card {
@@ -693,7 +746,7 @@ body {
 
   .step-label {
     color: #ffffff;
-    font-size: 0.95rem;
+    font-size: 0.95 capas;
   }
 
   .step.is-active {
