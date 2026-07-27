@@ -1,4 +1,4 @@
-<template>
+ <template>
   <div class="content-container">
     <!-- Encabezado -->
     <div class="content-header" ref="headerRef">
@@ -92,7 +92,7 @@
           <div class="finish-flag" aria-hidden="true">🏁</div>
           <div class="vehicle" :style="{ left: vehicleLeft }">
             <span class="speed-lines" v-show="running" aria-hidden="true"></span>
-            <span aria-hidden="true">🚗</span>
+            <span aria-hidden="true">🚙</span>
           </div>
         </div>
 
@@ -590,7 +590,7 @@ function runImpulse() {
   color: #b0c4de;
 }
 
-/* Pista de movimiento translúcida */
+/* Pista de movimiento translúcida con vehículo orientado de frente hacia la izquierda */
 .track {
   position: relative;
   height: 60px;
@@ -616,7 +616,7 @@ function runImpulse() {
 
 .finish-flag {
   position: absolute;
-  right: 0.75rem;
+  left: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
   font-size: 1.2rem;
@@ -625,6 +625,7 @@ function runImpulse() {
 .vehicle {
   position: absolute;
   top: 50%;
+  /* Sin scaleX(-1) y usando el emoji 🚙 para que su frente natural mire hacia la izquierda */
   transform: translateY(-50%);
   font-size: 1.6rem;
   transition: left 0.05s linear;
@@ -634,7 +635,7 @@ function runImpulse() {
 .speed-lines {
   position: absolute;
   top: 50%;
-  right: 100%;
+  right: 100%; /* Las líneas de velocidad vuelven a estar atrás del vehículo */
   width: 46px;
   height: 2px;
   transform: translateY(-50%);
