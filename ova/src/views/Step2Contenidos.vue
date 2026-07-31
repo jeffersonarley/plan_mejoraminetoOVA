@@ -61,7 +61,7 @@
       <div class="impulse-lab">
         <div class="lab-header">
           <h3>Laboratorio de Impulso Dinámico</h3>
-          <p>Mueve los controles y observa el vehículo acelerar o frenar en tiempo real.</p>
+          <p>Mueve los controles y observa la nave acelerar o frenar en tiempo real.</p>
         </div>
 
         <div class="lab-controls">
@@ -92,7 +92,7 @@
           <div class="finish-flag" aria-hidden="true">🏁</div>
           <div class="vehicle" :style="{ left: vehicleLeft }">
             <span class="speed-lines" v-show="running" aria-hidden="true"></span>
-            <span aria-hidden="true">🚙</span>
+            <span aria-hidden="true">🛸</span>
           </div>
         </div>
 
@@ -104,7 +104,7 @@
         </div>
 
         <button class="btn-animate-formula" @click="runImpulse" :disabled="running">
-          <span>{{ running ? 'En marcha…' : 'Probar Impulso Dinámico' }}</span>
+          <span>{{ running ? 'Propulsando…' : 'Probar Impulso Dinámico' }}</span>
         </button>
       </div>
     </div>
@@ -138,9 +138,9 @@ const explanationCards = [
     text: 'La pendiente de la línea en un gráfico velocidad-tiempo representa directamente la aceleración del objeto.',
   },
   {
-    icon: '🚜',
-    title: 'Contexto Productivo',
-    text: 'Aplicado en transporte regional, frenado de vehículos pesados y mecanismos automatizados de producción.',
+    icon: '🌌',
+    title: 'Contexto Productivo Alienígena',
+    text: 'Aplicado en propulsores de naves interestelares, frenado gravitacional y sistemas automatizados de producción en colonias espaciales.',
   },
 ]
 
@@ -225,7 +225,7 @@ const accelTagClass = computed(() => {
   return 'is-neutral'
 })
 
-const vehicleLeft = computed(() => `calc((100% - 46px) * ${carProgress.value})`)
+const vehicleLeft = computed(() => `calc((100% - 50px) * ${carProgress.value})`)
 
 const gaugeWidth = computed(() => {
   const max = Math.max(v0.value, vf.value, 1) * 1.05
@@ -285,9 +285,9 @@ function runImpulse() {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.4px;
-  color: #39a900;
-  background: rgba(57, 169, 0, 0.12);
-  border: 1px solid rgba(57, 169, 0, 0.35);
+  color: #00ffcc;
+  background: rgba(0, 255, 204, 0.12);
+  border: 1px solid rgba(0, 255, 204, 0.35);
   border-radius: 50px;
   margin-bottom: 0.85rem;
 }
@@ -297,6 +297,7 @@ function runImpulse() {
   font-weight: 800;
   color: #ffffff;
   margin: 0 0 0.5rem;
+  letter-spacing: 0.5px;
 }
 
 .content-lead {
@@ -306,7 +307,7 @@ function runImpulse() {
   margin: 0 auto;
 }
 
-/* Tarjetas con translúcidos */
+/* Tarjetas con translúcidos estilo sci-fi */
 .cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -314,12 +315,12 @@ function runImpulse() {
 }
 
 .info-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 15, 35, 0.65);
+  border: 1px solid rgba(0, 255, 204, 0.2);
   border-radius: 14px;
   padding: 1.4rem;
   backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
@@ -327,9 +328,9 @@ function runImpulse() {
 }
 
 .info-card:hover {
-  border-color: rgba(57, 169, 0, 0.4);
-  background: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 10px 30px rgba(57, 169, 0, 0.15);
+  border-color: rgba(0, 255, 204, 0.6);
+  background: rgba(10, 25, 50, 0.8);
+  box-shadow: 0 10px 30px rgba(0, 255, 204, 0.2);
   transform: translateY(-4px);
 }
 
@@ -337,8 +338,8 @@ function runImpulse() {
 .card-stage-360 {
   position: relative;
   height: 150px;
-  background: radial-gradient(circle at center, rgba(57, 169, 0, 0.15) 0%, rgba(6, 15, 35, 0.85) 80%);
-  border: 1px solid rgba(57, 169, 0, 0.3);
+  background: radial-gradient(circle at center, rgba(0, 255, 204, 0.15) 0%, rgba(6, 15, 35, 0.85) 80%);
+  border: 1px solid rgba(0, 255, 204, 0.3);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -357,8 +358,8 @@ function runImpulse() {
   width: 110px;
   height: 110px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(57, 169, 0, 0.3) 0%, transparent 70%);
-  border: 1px dashed rgba(57, 169, 0, 0.4);
+  background: radial-gradient(circle, rgba(0, 255, 204, 0.3) 0%, transparent 70%);
+  border: 1px dashed rgba(0, 255, 204, 0.4);
   transform: rotateX(75deg);
   bottom: 12px;
   pointer-events: none;
@@ -377,13 +378,13 @@ function runImpulse() {
   position: relative;
   width: 64px;
   height: 64px;
-  background: linear-gradient(135deg, rgba(0, 119, 255, 0.35), rgba(57, 169, 0, 0.15));
-  border: 2px solid rgba(57, 169, 0, 0.6);
+  background: linear-gradient(135deg, rgba(0, 119, 255, 0.35), rgba(0, 255, 204, 0.15));
+  border: 2px solid rgba(0, 255, 204, 0.6);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 20px rgba(57, 169, 0, 0.3);
+  box-shadow: 0 0 20px rgba(0, 255, 204, 0.3);
 }
 
 .object-icon {
@@ -393,7 +394,7 @@ function runImpulse() {
 .object-ring {
   position: absolute;
   inset: -6px;
-  border: 2px dotted rgba(57, 169, 0, 0.5);
+  border: 2px dotted rgba(0, 255, 204, 0.5);
   border-radius: 50%;
   animation: spinRing 8s linear infinite;
 }
@@ -444,20 +445,20 @@ function runImpulse() {
 }
 
 .formula-box {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 15, 35, 0.65);
+  border: 1px solid rgba(0, 255, 204, 0.2);
   border-radius: 14px;
   padding: 2rem;
   text-align: center;
   backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 .formula-tag {
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: #39a900;
+  color: #00ffcc;
   letter-spacing: 1.2px;
 }
 
@@ -499,12 +500,12 @@ function runImpulse() {
 
 /* Laboratorio de impulso translúcido */
 .impulse-lab {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 15, 35, 0.65);
+  border: 1px solid rgba(0, 255, 204, 0.2);
   border-radius: 14px;
   padding: 1.75rem;
   backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -541,7 +542,7 @@ function runImpulse() {
 }
 
 .control input[type='range'] {
-  accent-color: #39a900;
+  accent-color: #00ffcc;
   width: 100%;
 }
 
@@ -574,15 +575,15 @@ function runImpulse() {
 }
 
 .a-tag.is-positive {
-  background: rgba(57, 169, 0, 0.2);
-  color: #39a900;
-  border: 1px solid rgba(57, 169, 0, 0.4);
+  background: rgba(0, 255, 204, 0.2);
+  color: #00ffcc;
+  border: 1px solid rgba(0, 255, 204, 0.4);
 }
 
 .a-tag.is-negative {
-  background: rgba(200, 40, 40, 0.2);
+  background: rgba(255, 90, 90, 0.2);
   color: #ff6b6b;
-  border: 1px solid rgba(200, 40, 40, 0.4);
+  border: 1px solid rgba(255, 90, 90, 0.4);
 }
 
 .a-tag.is-neutral {
@@ -590,12 +591,12 @@ function runImpulse() {
   color: #b0c4de;
 }
 
-/* Pista de movimiento translúcida con vehículo orientado de frente hacia la izquierda */
+/* Pista de movimiento espacial */
 .track {
   position: relative;
   height: 60px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 255, 204, 0.2);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -608,7 +609,7 @@ function runImpulse() {
   height: 2px;
   background: repeating-linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.25) 0 14px,
+    rgba(0, 255, 204, 0.3) 0 14px,
     transparent 14px 28px
   );
   transform: translateY(-50%);
@@ -625,7 +626,6 @@ function runImpulse() {
 .vehicle {
   position: absolute;
   top: 50%;
-  /* Sin scaleX(-1) y usando el emoji 🚙 para que su frente natural mire hacia la izquierda */
   transform: translateY(-50%);
   font-size: 1.6rem;
   transition: left 0.05s linear;
@@ -635,13 +635,13 @@ function runImpulse() {
 .speed-lines {
   position: absolute;
   top: 50%;
-  right: 100%; /* Las líneas de velocidad vuelven a estar atrás del vehículo */
+  right: 100%;
   width: 46px;
   height: 2px;
   transform: translateY(-50%);
   background: repeating-linear-gradient(
     90deg,
-    rgba(57, 169, 0, 0.6) 0 6px,
+    rgba(0, 255, 204, 0.8) 0 6px,
     transparent 6px 12px
   );
 }
@@ -663,7 +663,7 @@ function runImpulse() {
 
 .gauge-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0077ff, #39a900);
+  background: linear-gradient(90deg, #0077ff, #00ffcc);
   border-radius: 8px;
   transition: width 0.05s linear;
 }
@@ -678,21 +678,21 @@ function runImpulse() {
 /* Botón */
 .btn-animate-formula {
   align-self: center;
-  background: linear-gradient(135deg, #0077ff, #39a900);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #0077ff, #00ffcc);
+  color: #060f23;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 0.8rem 1.75rem;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 0.9rem;
   border-radius: 999px;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0, 119, 255, 0.3);
+  box-shadow: 0 6px 20px rgba(0, 255, 204, 0.3);
   transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
 }
 
 .btn-animate-formula:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(57, 169, 0, 0.4);
+  box-shadow: 0 10px 25px rgba(0, 255, 204, 0.5);
 }
 
 .btn-animate-formula:disabled {
@@ -720,7 +720,7 @@ function runImpulse() {
 }
 
 .btn-nav.secondary {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(6, 15, 35, 0.65);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(8px);
@@ -731,14 +731,14 @@ function runImpulse() {
 }
 
 .btn-nav.primary {
-  background: linear-gradient(135deg, #0077ff, #39a900);
-  color: #fff;
-  box-shadow: 0 6px 20px rgba(0, 119, 255, 0.3);
+  background: linear-gradient(135deg, #0077ff, #00ffcc);
+  color: #060f23;
+  box-shadow: 0 6px 20px rgba(0, 255, 204, 0.3);
 }
 
 .btn-nav.primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(57, 169, 0, 0.4);
+  box-shadow: 0 10px 25px rgba(0, 255, 204, 0.5);
 }
 
 .arrow {
