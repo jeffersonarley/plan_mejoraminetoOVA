@@ -1,7 +1,13 @@
-<script setup>
+ <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-const G_MOON = 1.15 // Gravedad reducida para un descenso más suave y controlable
+const emit = defineEmits(['go-to-evaluation'])
+
+function goToEvaluation() {
+  emit('go-to-evaluation')
+}
+
+const G_MOON = 1.15
 
 const DIFFICULTIES = {
   facil:   { label: 'Fácil',   h0: [300, 380], v0: [20, 26], thrustMax: 3.5, fuel: 140, safeV: 3.5, desc: 'Ideal para practicar. Caída muy pausada y mayor margen.' },
@@ -13,7 +19,7 @@ const FUEL_BURN_RATE = 12
 
 const difficulty = ref('normal')
 const mode = ref('manual')
-const phase = ref('setup') // 'setup' | 'flight' | 'landed' | 'crashed' | 'calc'
+const phase = ref('setup')
 
 const scenario = reactive({ h0: 0, v0: 0, thrustMax: 0, fuelCap: 0, safeV: 0, desc: '' })
 const sim = reactive({ t: 0, h: 0, v: 0, a: 0, fuel: 0, throttle: 0 })
@@ -182,6 +188,7 @@ onMounted(() => {
   prepareMission()
   window.addEventListener('keydown', onKeydown)
 })
+
 onUnmounted(() => {
   stopLoop()
   window.removeEventListener('keydown', onKeydown)
@@ -219,6 +226,7 @@ const chartPoints = computed(() => {
 
 <template>
   <div class="lander-container">
+    <!-- Encabezado -->
     <header class="lander__header">
       <div class="lander__title">
         <span class="badge-pill">Simulador Educativo · Física Espacial</span>
@@ -229,14 +237,14 @@ const chartPoints = computed(() => {
       <div class="lander__setup">
         <div class="setup-controls">
           <label class="field">
-            <span>1. Elige la Dificultad</span>
+            <span>1. Dificultad</span>
             <select v-model="difficulty" @change="prepareMission" :disabled="phase === 'flight'">
               <option v-for="(d, key) in DIFFICULTIES" :key="key" :value="key">{{ d.label }}</option>
             </select>
           </label>
 
           <label class="field">
-            <span>2. Selecciona el Modo</span>
+            <span>2. Modo</span>
             <div class="mode-toggle" role="tablist">
               <button
                 role="tab"
@@ -251,13 +259,14 @@ const chartPoints = computed(() => {
                 :class="{ active: mode === 'auto' }"
                 :disabled="phase === 'flight'"
                 @click="setMode('auto')"
-              >📐 Automático (Cálculo)</button>
+              >📐 Automático</button>
             </div>
           </label>
         </div>
       </div>
     </header>
 
+    <!-- Cuerpo de la actividad -->
     <div class="lander__body">
       <section class="viewport" aria-label="Visor visual de descenso">
         <svg viewBox="0 0 320 400" preserveAspectRatio="xMidYMid meet">
@@ -278,7 +287,7 @@ const chartPoints = computed(() => {
           <text x="24" :y="VIEW_GROUND" class="scale-label">0 m (Superficie)</text>
 
           <rect x="0" :y="VIEW_GROUND" width="320" height="40" fill="#0f1422" />
-          <line x1="0" y1="360" x2="320" y2="360" stroke="#39a900" stroke-width="1.5" opacity="0.4" />
+          <line x1="0" y1="360" x2="320" y2="360" stroke="#00ffcc" stroke-width="1.5" opacity="0.4" />
           <rect x="115" :y="VIEW_GROUND - 2" width="90" height="6" rx="2" class="platform"
             :class="phase === 'landed' ? 'platform--ok' : phase === 'crashed' ? 'platform--danger' : ''" />
           <text x="160" :y="VIEW_GROUND + 24" text-anchor="middle" class="scale-label">
@@ -293,7 +302,7 @@ const chartPoints = computed(() => {
               <rect x="-11" y="-16" width="22" height="26" rx="4" fill="#c7d3ef" />
               <rect x="-14" y="6" width="6" height="10" fill="#8fa3c7" />
               <rect x="8" y="6" width="6" height="10" fill="#8fa3c7" />
-              <circle cx="0" cy="-6" r="5" fill="#0b0e14" stroke="#00b7ff" stroke-width="1.5" />
+              <circle cx="0" cy="-6" r="5" fill="#0b0e14" stroke="#00ffcc" stroke-width="1.5" />
             </g>
           </g>
         </svg>
@@ -305,9 +314,9 @@ const chartPoints = computed(() => {
           <p class="hint">{{ scenario.desc }}</p>
           <div class="mission-preview">
             <p><strong>Altitud de partida (h₀):</strong> {{ scenario.h0 }} metros</p>
-            <p><strong>Velocidad inicial de caída (v₀):</strong> {{ scenario.v0 }} m/s</p>
-            <p><strong>Combustible disponible:</strong> {{ scenario.fuelCap }}%</p>
-            <p><strong>Velocidad máxima permitida al tocar suelo:</strong> Máximo {{ scenario.safeV }} m/s</p>
+            <p><strong>Velocidad inicial (v₀):</strong> {{ scenario.v0 }} m/s</p>
+            <p><strong>Combustible:</strong> {{ scenario.fuelCap }}%</p>
+            <p><strong>Velocidad segura:</strong> ≤ {{ scenario.safeV }} m/s</p>
           </div>
           <button class="btn-eng run" @click="launchMission">
             <span>🚀 {{ mode === 'auto' ? 'Ir al Análisis Teórico' : '¡Comenzar Descenso Manual!' }}</span>
@@ -318,39 +327,39 @@ const chartPoints = computed(() => {
           <h3>📐 Paso 3.1 · Resolución de Fórmulas (MRUA)</h3>
           <p class="hint">Calcula la física del descenso antes de activar el piloto automático.</p>
           <ol class="formula-steps">
-            <li>Elige a qué altura encenderás los motores (h<sub>ign</sub>).</li>
-            <li>Calcula la velocidad previa: v² = v₀² + 2·g·(h₀ − h<sub>ign</sub>)</li>
-            <li>Halla la desaceleración necesaria: a = v<sub>ign</sub>² / (2·h<sub>ign</sub>)</li>
+            <li>Elige la altura de ignición (h<sub>ign</sub>).</li>
+            <li>v² = v₀² + 2·g·(h₀ − h<sub>ign</sub>)</li>
+            <li>a = v<sub>ign</sub>² / (2·h<sub>ign</sub>)</li>
           </ol>
 
           <label class="field">
-            <span>Altitud de ignición h<sub>ign</sub> (m) [Máx: {{ scenario.h0 }}]</span>
+            <span>Altitud de ignición h<sub>ign</sub> (m)</span>
             <input type="number" min="1" :max="scenario.h0" v-model.number="ignitionAltitude" placeholder="Ej: 150" />
           </label>
 
           <p v-if="velocityAtIgnition != null" class="derived">
-            💡 Velocidad calculada en ignición ≈ {{ velocityAtIgnition.toFixed(2) }} m/s
+            💡 Velocidad en ignición ≈ {{ velocityAtIgnition.toFixed(2) }} m/s
           </p>
 
           <label class="field">
-            <span>Tu respuesta de desaceleración (m/s²)</span>
+            <span>Desaceleración (m/s²)</span>
             <input type="number" step="0.01" min="0" v-model.number="studentAnswer" placeholder="Ej: 2.0" />
           </label>
 
           <p v-if="answerFeedback === 'correcto'" class="feedback ok">
-            ✔ ¡Excelente! El cálculo es correcto. Ya puedes activar el sistema.
+            ✔ ¡Excelente! El cálculo es correcto.
           </p>
           <p v-else-if="answerFeedback === 'incorrecto'" class="feedback bad">
-            ⚠ Revisa la fórmula de desaceleración. Intenta recalcular con calma.
+            ⚠ Revisa la fórmula de desaceleración.
           </p>
 
           <button class="btn-eng run" :disabled="requiredDeceleration == null || studentAnswer == null" @click="beginAutoFlight">
-            <span>🚀 Activar Autopiloto y Desender</span>
+            <span>🚀 Activar Autopiloto</span>
           </button>
         </div>
 
         <div v-else class="telemetry-card">
-          <h3>📊 Tablero de Telemetría en Vuelo</h3>
+          <h3>📊 Tablero de Telemetría</h3>
           <dl class="telemetry-grid">
             <div class="t-box"><dt>Tiempo</dt><dd>{{ sim.t.toFixed(2) }}s</dd></div>
             <div class="t-box"><dt>Altitud</dt><dd>{{ sim.h.toFixed(1) }}m</dd></div>
@@ -359,31 +368,31 @@ const chartPoints = computed(() => {
             </div>
             <div class="t-box"><dt>Acel. Neta</dt><dd>{{ sim.a.toFixed(2) }}</dd></div>
             <div class="t-box"><dt>Combustible</dt><dd>{{ sim.fuel.toFixed(0) }}%</dd></div>
-            <div class="t-box"><dt>Acelerador</dt><dd>{{ sim.throttle.toFixed(0) }}%</dd></div>
+            <div class="t-box"><dt>Potencia</dt><dd>{{ sim.throttle.toFixed(0) }}%</dd></div>
           </dl>
 
           <div class="chart-wrapper">
             <svg class="chart" viewBox="0 0 300 80" preserveAspectRatio="none">
               <line x1="0" y1="70" x2="300" y2="70" stroke="rgba(255,255,255,0.15)" />
-              <polyline :points="chartPoints" fill="none" stroke="#00b7ff" stroke-width="2" />
+              <polyline :points="chartPoints" fill="none" stroke="#00ffcc" stroke-width="2" />
             </svg>
-            <span class="chart-caption">Gráfica de Velocidad del Módulo en el Tiempo</span>
+            <span class="chart-caption">Velocidad vs. Tiempo</span>
           </div>
 
           <div v-if="mode === 'manual' && phase === 'flight'" class="throttle-control">
             <label class="field">
-              <span>Potencia de Retrocohetes: <strong>{{ sim.throttle.toFixed(0) }}%</strong></span>
+              <span>Potencia: <strong>{{ sim.throttle.toFixed(0) }}%</strong></span>
               <input type="range" min="0" max="100" step="1"
                 :value="sim.throttle"
                 @input="setThrottle(Number($event.target.value))" />
             </label>
-            <span class="hint-key">🕹️ <strong>Tip:</strong> Usa las flechas <strong>↑</strong> y <strong>↓</strong> del teclado para regular la potencia con calma.</span>
+            <span class="hint-key">🕹️ Usa las flechas <strong>↑</strong> y <strong>↓</strong> del teclado.</span>
           </div>
 
           <div v-if="phase === 'landed' || phase === 'crashed'" class="result" :class="phase">
-            <h4>{{ phase === 'landed' ? '🎉 ¡Misión Cumplida: Alunizaje Exitoso!' : '💥 ¡Oops! Demasiado rápido, el módulo colisionó' }}</h4>
-            <p>Velocidad de contacto: <strong>{{ Math.abs(sim.v).toFixed(2) }} m/s</strong> (Requerido: ≤ {{ scenario.safeV }} m/s)</p>
-            <button class="btn-eng run" @click="prepareMission"><span>🔄 Intentar Nueva Misión</span></button>
+            <h4>{{ phase === 'landed' ? '🎉 ¡Alunizaje Exitoso!' : '💥 Colisión Detectada' }}</h4>
+            <p>Velocidad final: <strong>{{ Math.abs(sim.v).toFixed(2) }} m/s</strong></p>
+            <button class="btn-eng run" @click="prepareMission"><span>🔄 Reintentar Misión</span></button>
           </div>
 
           <button v-else-if="phase !== 'flight'" class="btn-eng run" @click="prepareMission">
@@ -399,6 +408,23 @@ const chartPoints = computed(() => {
         </div>
       </section>
     </div>
+
+    <!-- Navegación estilo contenidos (Barra inferior alineada a la derecha) -->
+    <div class="navigation-footer">
+      <!-- Si usas Vue Router -->
+      <router-link to="/nivel-4" class="btn-nav primary">
+        <span>Siguiente: Evaluación</span>
+        <span class="arrow">→</span>
+      </router-link>
+
+      <!-- Si usas eventos ($emit) sin vue-router, descomenta este botón y comenta el router-link: -->
+      <!-- 
+      <button class="btn-nav primary" @click="goToEvaluation">
+        <span>Siguiente: Evaluación</span>
+        <span class="arrow">→</span>
+      </button> 
+      -->
+    </div>
   </div>
 </template>
 
@@ -407,58 +433,52 @@ const chartPoints = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  max-width: 1050px;
+  max-width: 1000px;
   margin: 0 auto;
-  background: rgba(11, 14, 20, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 15, 35, 0.65);
+  border: 1px solid rgba(0, 255, 204, 0.2);
   border-radius: 16px;
   padding: 1.75rem;
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(12px);
   color: #d7e0f5;
-  font-family: inherit;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 .lander__header {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: flex-end;
   gap: 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(0, 255, 204, 0.15);
   padding-bottom: 1.25rem;
 }
 
 .badge-pill {
   display: inline-block;
-  padding: 0.3rem 0.85rem;
-  font-size: 0.7rem;
+  padding: 0.35rem 1rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1.2px;
-  color: #39a900;
-  background: rgba(57, 169, 0, 0.12);
-  border: 1px solid rgba(57, 169, 0, 0.35);
+  letter-spacing: 1.4px;
+  color: #00ffcc;
+  background: rgba(0, 255, 204, 0.12);
+  border: 1px solid rgba(0, 255, 204, 0.35);
   border-radius: 50px;
   margin-bottom: 0.6rem;
 }
 
 .lander__title h2 {
   margin: 0 0 0.25rem;
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   color: #fff;
+  font-weight: 800;
 }
 
 .subtitle {
   color: #b0c4de;
   font-size: 0.88rem;
   margin: 0;
-  max-width: 50ch;
-}
-
-.lander__setup {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  align-items: flex-end;
 }
 
 .setup-controls {
@@ -478,23 +498,18 @@ const chartPoints = computed(() => {
 
 .field input, .field select {
   background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(0, 255, 204, 0.3);
   color: #fff;
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
   font-family: inherit;
   font-size: 0.85rem;
   outline: none;
-  cursor: pointer;
 }
 
 .field select option {
-  background: #0f1422;
+  background: #060f23;
   color: #fff;
-}
-
-.field input:focus, .field select:focus {
-  border-color: #00b7ff;
 }
 
 .mode-toggle {
@@ -515,14 +530,9 @@ const chartPoints = computed(() => {
 }
 
 .mode-toggle button.active {
-  background: rgba(0, 183, 255, 0.12);
-  border-color: #00b7ff;
-  color: #00b7ff;
-}
-
-.mode-toggle button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+  background: rgba(0, 255, 204, 0.15);
+  border-color: #00ffcc;
+  color: #00ffcc;
 }
 
 .lander__body {
@@ -533,13 +543,12 @@ const chartPoints = computed(() => {
 
 @media (max-width: 768px) {
   .lander__body { grid-template-columns: 1fr; }
-  .lander__setup { align-items: stretch; }
   .setup-controls { flex-direction: column; align-items: stretch; }
 }
 
 .viewport {
   background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 204, 0.2);
   border-radius: 12px;
   overflow: hidden;
   display: flex;
@@ -554,11 +563,11 @@ const chartPoints = computed(() => {
   font-family: monospace;
 }
 
-.platform { fill: #00b7ff; }
-.platform--ok { fill: #39a900; }
-.platform--danger { fill: #ff4d4d; }
+.platform { fill: #00ffcc; }
+.platform--ok { fill: #00ffcc; }
+.platform--danger { fill: #ff6b6b; }
 .module rect, .module circle { transition: fill 0.2s; }
-.module.crashed rect { fill: #ff4d4d; }
+.module.crashed rect { fill: #ff6b6b; }
 
 .panel {
   display: flex;
@@ -567,8 +576,8 @@ const chartPoints = computed(() => {
 }
 
 .calc-card, .telemetry-card, .log-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(0, 255, 204, 0.15);
   border-radius: 12px;
   padding: 1.25rem;
 }
@@ -578,7 +587,7 @@ const chartPoints = computed(() => {
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #00b7ff;
+  color: #00ffcc;
 }
 
 .hint {
@@ -615,7 +624,7 @@ const chartPoints = computed(() => {
 
 .derived {
   font-size: 0.85rem;
-  color: #00b7ff;
+  color: #00ffcc;
   font-weight: 600;
   margin: 0.4rem 0;
 }
@@ -627,8 +636,8 @@ const chartPoints = computed(() => {
   margin: 0.5rem 0;
   font-weight: 600;
 }
-.feedback.ok { background: rgba(57, 169, 0, 0.12); color: #39a900; border: 1px solid rgba(57, 169, 0, 0.3); }
-.feedback.bad { background: rgba(255, 77, 77, 0.12); color: #ff4d4d; border: 1px solid rgba(255, 77, 77, 0.3); }
+.feedback.ok { background: rgba(0, 255, 204, 0.15); color: #00ffcc; border: 1px solid rgba(0, 255, 204, 0.3); }
+.feedback.bad { background: rgba(255, 90, 90, 0.15); color: #ff6b6b; border: 1px solid rgba(255, 90, 90, 0.3); }
 
 .telemetry-grid {
   display: grid;
@@ -649,7 +658,6 @@ const chartPoints = computed(() => {
   font-size: 0.65rem;
   color: #b0c4de;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .t-box dd {
@@ -659,9 +667,9 @@ const chartPoints = computed(() => {
   color: #fff;
 }
 
-.v-ok dd { color: #39a900 !important; }
+.v-ok dd { color: #00ffcc !important; }
 .v-warn dd { color: #ffb703 !important; }
-.v-danger dd { color: #ff4d4d !important; }
+.v-danger dd { color: #ff6b6b !important; }
 
 .chart-wrapper {
   background: rgba(0, 0, 0, 0.3);
@@ -675,7 +683,7 @@ const chartPoints = computed(() => {
 .chart-caption { color: #b0c4de; font-size: 0.68rem; display: block; text-align: center; margin-top: 0.25rem; }
 
 .throttle-control input[type="range"] {
-  accent-color: #39a900;
+  accent-color: #00ffcc;
   width: 100%;
   margin-top: 0.3rem;
 }
@@ -685,8 +693,8 @@ const chartPoints = computed(() => {
   padding: 0.85rem;
   border-radius: 8px;
 }
-.result.landed { background: rgba(57, 169, 0, 0.1); border: 1px solid rgba(57, 169, 0, 0.3); }
-.result.crashed { background: rgba(255, 77, 77, 0.1); border: 1px solid rgba(255, 77, 77, 0.3); }
+.result.landed { background: rgba(0, 255, 204, 0.1); border: 1px solid rgba(0, 255, 204, 0.3); }
+.result.crashed { background: rgba(255, 90, 90, 0.1); border: 1px solid rgba(255, 90, 90, 0.3); }
 .result h4 { margin: 0 0 0.25rem; color: #fff; }
 .result p { margin: 0 0 0.5rem; font-size: 0.82rem; color: #b0c4de; }
 
@@ -706,9 +714,9 @@ const chartPoints = computed(() => {
 }
 
 .btn-eng.run {
-  background: linear-gradient(135deg, #0077ff, #39a900);
-  color: #fff;
-  box-shadow: 0 4px 15px rgba(0, 119, 255, 0.3);
+  background: linear-gradient(135deg, #0077ff, #00ffcc);
+  color: #060f23;
+  box-shadow: 0 4px 15px rgba(0, 255, 204, 0.3);
 }
 
 .btn-eng:disabled {
@@ -728,5 +736,50 @@ const chartPoints = computed(() => {
   flex-direction: column;
   gap: 0.25rem;
   font-family: monospace;
+}
+
+/* ===================================================
+   Navegación Footer (Idéntica a la vista de Contenidos)
+   =================================================== */
+.navigation-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-nav.primary {
+  background: linear-gradient(135deg, #0077ff, #00ffcc);
+  color: #060f23;
+  box-shadow: 0 6px 20px rgba(0, 255, 204, 0.3);
+}
+
+.btn-nav.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 255, 204, 0.5);
+}
+
+.arrow {
+  transition: transform 0.3s ease;
+}
+
+.btn-nav.primary:hover .arrow {
+  transform: translateX(4px);
 }
 </style>
