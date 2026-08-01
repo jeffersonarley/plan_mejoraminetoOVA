@@ -1,253 +1,720 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-const currentQuestion = ref(0)
-const userAnswers = ref({})
-const selectedOption = ref(null)
-const isSubmitted = ref(false)
-
-// Estado de pistas
-const showHint = ref(false)
-const hintsUsed = ref({})
-
-const questions = [
-  {
-    category: "Concepto de Aceleración",
-    question: "¿Qué representa físicamente la aceleración en el movimiento de un objeto?",
-    options: [
-      "La velocidad total acumulada durante el recorrido.",
-      "La razón de cambio de la velocidad en relación al tiempo.",
-      "La distancia recorrida por cada segundo transcurrido.",
-      "La fuerza máxima ejercida sobre el objeto en caída."
-    ],
-    correct: 1,
-    hint: "Recuerda la fórmula a = (v_f - v_i) / t. No mide qué tan rápido vas, sino cuánto varía tu velocidad.",
-    explanation: "La aceleración indica la variación de velocidad en un intervalo de tiempo determinado."
-  },
-  {
-    category: "Cálculo en Módulo Lunar",
-    question: "Si el módulo reduce su velocidad de 30 m/s a 5 m/s en 10 segundos, ¿cuál es su desaceleración?",
-    options: [
-      "2.5 m/s²",
-      "-2.5 m/s²",
-      "3.5 m/s²",
-      "-3.0 m/s²"
-    ],
-    correct: 1,
-    hint: "Calcula a = (v_f - v_i) / t = (5 - 30) / 10. Al ser un frenado, el resultado debe ser negativo.",
-    explanation: "a = (5 - 30) / 10 = -2.5 m/s². El signo negativo indica que el vehículo está frenando."
-  },
-  {
-    category: "Caída Libre y Gravedad",
-    question: "Si un objeto cae en la Luna (g = 1.15 m/s²) partiendo del reposo, ¿qué velocidad alcanza a los 4 segundos?",
-    options: [
-      "9.80 m/s",
-      "4.60 m/s",
-      "2.30 m/s",
-      "1.15 m/s"
-    ],
-    correct: 1,
-    hint: "Aplica la fórmula v_f = v_0 + g * t considerando v_0 = 0 m/s.",
-    explanation: "v_f = 0 + (1.15 * 4) = 4.60 m/s."
-  },
-  {
-    category: "Velocidad Constante",
-    question: "Un módulo navega a una velocidad constante de 15 m/s en el espacio. ¿Cuál es su aceleración neta?",
-    options: [
-      "15 m/s²",
-      "1.15 m/s²",
-      "0 m/s²",
-      "Depende de la masa del combustible restante."
-    ],
-    correct: 2,
-    hint: "Si la velocidad no cambia en el tiempo (v_f = v_i), la diferencia de velocidad es igual a cero.",
-    explanation: "Sin cambio de velocidad (v_f - v_i = 0), la aceleración es de exactamente 0 m/s²."
+/* ================================================================ */
+/* Utilidades                                                       */
+/* ================================================================ */
+function shuffle(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
   }
+  return a
+}
+
+/* ================================================================ */
+/* Definición de los 10 ejercicios                                   */
+/* ================================================================ */
+const exercises = [
+  {
+    id: 0,
+    type: 'gravity-select',
+    category: '🚀 Selector de Gravedad Planetaria',
+    prompt: 'Un paquete se libera en caída libre desde el reposo. Después de t = 4 s alcanza una velocidad de 39.2 m/s. ¿En qué cuerpo celeste ocurrió el lanzamiento?',
+    hint: 'Usa v_f = g · t (con v₀ = 0). Despeja g = v_f / t y compáralo con la tabla de gravedades.',
+    data: {
+      options: [
+        { name: 'Luna', g: 1.15, icon: '🌕' },
+        { name: 'Marte', g: 3.7, icon: '🔴' },
+        { name: 'Tierra', g: 9.8, icon: '🌍' },
+        { name: 'Júpiter', g: 24.8, icon: '🪐' },
+      ],
+    },
+    correct: 'Tierra',
+    explanation: 'g = v_f / t = 39.2 / 4 = 9.8 m/s², que corresponde a la gravedad de la Tierra.',
+  },
+  {
+    id: 1,
+    type: 'equation-assembly',
+    category: '🧩 Ensamble de la Ecuación',
+    prompt: 'Arrastra (o toca) las fichas para reconstruir la ecuación de velocidad final en un movimiento con aceleración constante.',
+    hint: 'La velocidad final es la velocidad inicial más el producto de la aceleración por el tiempo.',
+    data: { tokens: ['v_f', '=', 'v_0', '+', 'a', '·', 't'] },
+    explanation: 'La ecuación correcta es v_f = v_0 + a · t: la velocidad final depende de la inicial, más lo que se ganó por acelerar durante un tiempo t.',
+  },
+  {
+    id: 2,
+    type: 'graph-click',
+    category: '📊 Decodificador de Telemetría',
+    prompt: 'La gráfica muestra la velocidad de un módulo en tres tramos de vuelo. Haz clic sobre el tramo donde la aceleración es exactamente 0 m/s².',
+    hint: 'La aceleración es la pendiente de la gráfica v-t. Una pendiente de cero es una línea horizontal.',
+    data: {
+      points: [
+        [0, 0], [3, 20], [6, 20], [9, 0],
+      ],
+      maxT: 9,
+      maxV: 20,
+      zones: [
+        { from: 0, to: 3, label: 'Tramo 1' },
+        { from: 3, to: 6, label: 'Tramo 2' },
+        { from: 6, to: 9, label: 'Tramo 3' },
+      ],
+    },
+    correct: 2,
+    explanation: 'En el Tramo 2 (3 s a 6 s) la velocidad se mantiene constante en 20 m/s: la gráfica es horizontal, por lo tanto a = 0 m/s².',
+  },
+  {
+    id: 3,
+    type: 'vector-classify',
+    category: '⚖️ Clasificador de Vectores y Módulos',
+    prompt: 'Clasifica cada situación de vuelo según el signo de su aceleración.',
+    hint: 'Si gana rapidez en su dirección de movimiento es (+); si frena es (−); si no cambia su rapidez es (0).',
+    data: {
+      scenarios: [
+        { text: 'El módulo enciende motores en la dirección de su movimiento y gana rapidez.', correct: 'plus' },
+        { text: 'El módulo apaga motores y viaja en línea recta a rapidez constante por el vacío espacial.', correct: 'zero' },
+        { text: 'El módulo activa retrocohetes en contra de su movimiento para frenar antes de aterrizar.', correct: 'minus' },
+        { text: 'La nave mantiene el mismo empuje y la misma rapidez durante toda la órbita de transferencia.', correct: 'zero' },
+      ],
+    },
+    explanation: 'Acelerado (+) = gana rapidez en su dirección; Frenado (−) = pierde rapidez (empuje contrario); Constante (0) = la rapidez no cambia.',
+  },
+  {
+    id: 4,
+    type: 'numeric-console',
+    category: '🎛️ Calculadora de Ignición Espacial',
+    prompt: 'Un módulo parte con v₀ = 12 m/s y acelera a 2.5 m/s² durante 8 s. Calcula su velocidad final e ingrésala en el panel.',
+    hint: 'v_f = v_0 + a · t',
+    data: { answer: 32, tolerance: 0.5 },
+    explanation: 'v_f = 12 + (2.5 × 8) = 12 + 20 = 32 m/s.',
+  },
+  {
+    id: 5,
+    type: 'stopwatch',
+    category: '⏱️ Temporizador de Maniobra Orbital',
+    prompt: 'Un módulo pasa de v₀ = 5 m/s a v_f = 17 m/s con una aceleración de 3 m/s². Calcula mentalmente el tiempo t que dura la maniobra, luego presiona INICIAR y detén el cronómetro justo en ese segundo.',
+    hint: 't = (v_f − v_0) / a',
+    data: { answer: 4, tolerance: 0.4 },
+    explanation: 't = (17 − 5) / 3 = 12 / 3 = 4 s.',
+  },
+  {
+    id: 6,
+    type: 'thruster-select',
+    category: '🚀 Selección de Propulsores',
+    prompt: 'La misión requiere una desaceleración de 3.7 m/s² para el descenso. Selecciona el propulsor adecuado.',
+    hint: 'Compara el empuje (aceleración) de cada propulsor con el valor requerido por la misión.',
+    data: {
+      thrusters: [
+        { name: 'Alfa', thrust: 1.8, desc: 'Bajo consumo — ideal para maniobras finas de aproximación.' },
+        { name: 'Beta', thrust: 3.7, desc: 'Consumo medio — diseñado para descensos en gravedad media.' },
+        { name: 'Gamma', thrust: 6.2, desc: 'Alto consumo — reservado para despegues de emergencia.' },
+      ],
+    },
+    correct: 'Beta',
+    explanation: 'El propulsor Beta entrega exactamente 3.7 m/s² de empuje, el valor que exige la misión.',
+  },
+  {
+    id: 7,
+    type: 'code-fill',
+    category: '🧮 Rellenar Código en Consola',
+    prompt: 'Completa la línea de código para que calcule correctamente la aceleración.',
+    hint: 'La fórmula es a = (v_f − v_0) / t. La variable que falta es v0 (o su valor, 10).',
+    data: { accepted: ['v0', 'vo', '10'] },
+    explanation: 'a = (vf − v0) / t. La variable v0 vale 10, así que también se acepta escribir "10" directamente.',
+  },
+  {
+    id: 8,
+    type: 'knob',
+    category: '⛽ Perilla de Empuje de Motor',
+    prompt: 'Gira la perilla hasta ajustar el empuje del motor exactamente a 2.4 m/s².',
+    hint: 'Arrastra el indicador de la perilla con el mouse o el dedo; el valor actual se muestra debajo.',
+    data: { target: 2.4, max: 4, tolerance: 0.15 },
+    explanation: 'El valor solicitado por la misión era 2.4 m/s² de empuje.',
+  },
+  {
+    id: 9,
+    type: 'launch-sim',
+    category: '🏆 Misión Final: Lanzamiento de Sonda',
+    prompt: 'Parámetros conocidos: v₀ = 10 m/s, a = 2 m/s². La sonda debe alcanzar una velocidad de escape de 50 m/s. Calcula el tiempo de propulsión t e ingrésalo antes de lanzar.',
+    hint: 'v_f = v_0 + a · t → despeja t = (v_f − v_0) / a',
+    data: { v0: 10, a: 2, targetVf: 50, toleranceVf: 2 },
+    explanation: 't = (50 − 10) / 2 = 20 s. Con ese tiempo de propulsión, la sonda alcanza los 50 m/s requeridos.',
+  },
 ]
 
-const isHintUsedForCurrent = computed(() => !!hintsUsed.value[currentQuestion.value])
+/* ================================================================ */
+/* Estado general de navegación                                     */
+/* ================================================================ */
+const currentQuestion = ref(0)
+const isSubmitted = ref(false)
+const showHint = ref(false)
+const hintsUsed = reactive({})
 
-function selectOption(index) {
-  selectedOption.value = index
-  userAnswers.value[currentQuestion.value] = index
-}
-
-function nextQuestion() {
-  if (selectedOption.value !== null) {
-    showHint.value = false
-    currentQuestion.value++
-    selectedOption.value = userAnswers.value[currentQuestion.value] ?? null
-  }
-}
-
-function prevQuestion() {
-  showHint.value = false
-  currentQuestion.value--
-  selectedOption.value = userAnswers.value[currentQuestion.value] ?? null
-}
+const currentEx = computed(() => exercises[currentQuestion.value])
+const isHintUsedForCurrent = computed(() => !!hintsUsed[currentQuestion.value])
 
 function triggerHint() {
   showHint.value = true
-  hintsUsed.value[currentQuestion.value] = true
+  hintsUsed[currentQuestion.value] = true
 }
 
+function nextQuestion() {
+  if (!isAnswered(currentQuestion.value)) return
+  showHint.value = false
+  currentQuestion.value++
+}
+function prevQuestion() {
+  showHint.value = false
+  currentQuestion.value--
+}
 function finishEvaluation() {
+  if (!isAnswered(currentQuestion.value)) return
   isSubmitted.value = true
 }
 
-const correctCount = computed(() => {
-  let count = 0
-  questions.forEach((q, idx) => {
-    if (userAnswers.value[idx] === q.correct) count++
-  })
-  return count
+/* ================================================================ */
+/* Ejercicio 0 · Selector de Gravedad Planetaria                    */
+/* ================================================================ */
+const gravitySelected = ref(null)
+
+/* ================================================================ */
+/* Ejercicio 1 · Ensamble de la Ecuación (drag & drop / tap)        */
+/* ================================================================ */
+const assemblyPool = ref([])
+const assemblySlots = ref([])
+const assemblySelectedToken = ref(null)
+
+function initAssembly() {
+  const tokens = exercises[1].data.tokens.map((label, id) => ({ id, label }))
+  assemblyPool.value = shuffle(tokens)
+  assemblySlots.value = Array(tokens.length).fill(null)
+  assemblySelectedToken.value = null
+}
+
+function placeTokenInSlot(id, slotIndex) {
+  if (assemblySlots.value[slotIndex]) return
+  const token = assemblyPool.value.find(t => t.id === id)
+  if (!token) return
+  assemblySlots.value[slotIndex] = token
+  assemblyPool.value = assemblyPool.value.filter(t => t.id !== id)
+}
+function returnTokenFromSlot(slotIndex) {
+  const token = assemblySlots.value[slotIndex]
+  if (!token) return
+  assemblyPool.value.push(token)
+  assemblySlots.value[slotIndex] = null
+}
+function onPoolDragStart(token, e) {
+  e.dataTransfer.setData('text/plain', JSON.stringify({ id: token.id, from: 'pool' }))
+}
+function onSlotDragStart(slotIndex, e) {
+  const token = assemblySlots.value[slotIndex]
+  if (!token) return
+  e.dataTransfer.setData('text/plain', JSON.stringify({ id: token.id, from: 'slot', slotIndex }))
+}
+function onDropSlot(targetIndex, e) {
+  e.preventDefault()
+  let data
+  try { data = JSON.parse(e.dataTransfer.getData('text/plain') || '{}') } catch { return }
+  if (assemblySlots.value[targetIndex] && data.from !== 'slot') return
+  if (data.from === 'pool') {
+    placeTokenInSlot(data.id, targetIndex)
+  } else if (data.from === 'slot' && !assemblySlots.value[targetIndex]) {
+    const token = assemblySlots.value[data.slotIndex]
+    assemblySlots.value[data.slotIndex] = null
+    assemblySlots.value[targetIndex] = token
+  }
+}
+function onDropPool(e) {
+  e.preventDefault()
+  let data
+  try { data = JSON.parse(e.dataTransfer.getData('text/plain') || '{}') } catch { return }
+  if (data.from === 'slot') returnTokenFromSlot(data.slotIndex)
+}
+function onSlotClick(slotIndex) {
+  if (assemblySlots.value[slotIndex]) {
+    returnTokenFromSlot(slotIndex)
+  } else if (assemblySelectedToken.value != null) {
+    placeTokenInSlot(assemblySelectedToken.value, slotIndex)
+    assemblySelectedToken.value = null
+  }
+}
+function onPoolTokenClick(token) {
+  assemblySelectedToken.value = assemblySelectedToken.value === token.id ? null : token.id
+}
+
+/* ================================================================ */
+/* Ejercicio 2 · Decodificador de Telemetría (gráfica clicable)      */
+/* ================================================================ */
+const graphSelected = ref(null)
+const CHART_W = 300
+const CHART_H = 140
+const chartPolyline = computed(() => {
+  const { points, maxT, maxV } = exercises[2].data
+  return points
+    .map(([t, v]) => `${(t / maxT) * CHART_W},${CHART_H - 20 - (v / maxV) * (CHART_H - 40)}`)
+    .join(' ')
+})
+const chartZones = computed(() => {
+  const { zones, maxT } = exercises[2].data
+  return zones.map(z => ({
+    x: (z.from / maxT) * CHART_W,
+    w: ((z.to - z.from) / maxT) * CHART_W,
+  }))
 })
 
-const scorePercentage = computed(() => Math.round((correctCount.value / questions.length) * 100))
+/* ================================================================ */
+/* Ejercicio 3 · Clasificador de Vectores (toggles de 3 posiciones)  */
+/* ================================================================ */
+const vectorStates = ref([null, null, null, null])
 
+/* ================================================================ */
+/* Ejercicio 4 · Calculadora de Ignición (teclado + LED)             */
+/* ================================================================ */
+const numericValue = ref('')
+const numericConfirmed = ref(false)
+function pressDigit(k) {
+  numericConfirmed.value = false
+  numericValue.value += k
+}
+function clearNumeric() {
+  numericConfirmed.value = false
+  numericValue.value = ''
+}
+function backspaceNumeric() {
+  numericConfirmed.value = false
+  numericValue.value = numericValue.value.slice(0, -1)
+}
+function confirmNumeric() {
+  if (numericValue.value === '') return
+  numericConfirmed.value = true
+}
+
+/* ================================================================ */
+/* Ejercicio 5 · Temporizador de Maniobra Orbital (cronómetro)       */
+/* ================================================================ */
+const stopwatchElapsed = ref(0)
+const stopwatchRunning = ref(false)
+const stopwatchStopped = ref(false)
+let stopwatchInterval = null
+let stopwatchStart = null
+
+function startStopwatch() {
+  stopwatchRunning.value = true
+  stopwatchStopped.value = false
+  stopwatchElapsed.value = 0
+  stopwatchStart = performance.now()
+  stopwatchInterval = setInterval(() => {
+    stopwatchElapsed.value = (performance.now() - stopwatchStart) / 1000
+  }, 30)
+}
+function stopStopwatch() {
+  if (!stopwatchRunning.value) return
+  clearInterval(stopwatchInterval)
+  stopwatchInterval = null
+  stopwatchRunning.value = false
+  stopwatchStopped.value = true
+}
+function resetStopwatchState() {
+  if (stopwatchInterval) clearInterval(stopwatchInterval)
+  stopwatchInterval = null
+  stopwatchElapsed.value = 0
+  stopwatchRunning.value = false
+  stopwatchStopped.value = false
+}
+
+/* ================================================================ */
+/* Ejercicio 6 · Selección de Propulsores                            */
+/* ================================================================ */
+const thrusterSelected = ref(null)
+
+/* ================================================================ */
+/* Ejercicio 7 · Rellenar Código en Consola                          */
+/* ================================================================ */
+const codeBlank = ref('')
+
+/* ================================================================ */
+/* Ejercicio 8 · Perilla de Empuje de Motor (knob giratorio)         */
+/* ================================================================ */
+const knobValue = ref(0)
+const knobConfirmed = ref(false)
+const knobDragging = ref(false)
+const knobBase = ref(null)
+
+function angleFromValue(v) {
+  const max = exercises[8].data.max
+  return -135 + (Math.max(0, Math.min(v, max)) / max) * 270
+}
+function valueFromAngleDeg(deg) {
+  const max = exercises[8].data.max
+  const clamped = Math.max(-135, Math.min(135, deg))
+  return ((clamped + 135) / 270) * max
+}
+function onKnobPointerDown(e) {
+  knobDragging.value = true
+  knobConfirmed.value = false
+  e.target.setPointerCapture?.(e.pointerId)
+  updateKnobFromEvent(e)
+}
+function onKnobPointerMove(e) {
+  if (!knobDragging.value) return
+  updateKnobFromEvent(e)
+}
+function onKnobPointerUp() {
+  knobDragging.value = false
+}
+function updateKnobFromEvent(e) {
+  if (!knobBase.value) return
+  const rect = knobBase.value.getBoundingClientRect()
+  const cx = rect.left + rect.width / 2
+  const cy = rect.top + rect.height / 2
+  const dx = e.clientX - cx
+  const dy = e.clientY - cy
+  let deg = Math.atan2(dy, dx) * (180 / Math.PI) + 90
+  if (deg > 180) deg -= 360
+  knobValue.value = Number(valueFromAngleDeg(deg).toFixed(2))
+}
+function confirmKnob() {
+  knobConfirmed.value = true
+}
+
+/* ================================================================ */
+/* Ejercicio 9 · Misión Final: Lanzamiento de Sonda                  */
+/* ================================================================ */
+const launchT = ref('')
+const launchAnimating = ref(false)
+const launchProgress = ref(0)
+const launchResult = ref(null)
+const predictedVf = computed(() => {
+  const t = Number(launchT.value) || 0
+  return exercises[9].data.v0 + exercises[9].data.a * t
+})
+
+function fireProbe() {
+  if (!launchT.value || launchAnimating.value) return
+  launchAnimating.value = true
+  launchProgress.value = 0
+  const duration = 2200
+  const start = performance.now()
+  function frame(ts) {
+    const p = Math.min((ts - start) / duration, 1)
+    launchProgress.value = p * 88
+    if (p < 1) {
+      requestAnimationFrame(frame)
+    } else {
+      launchAnimating.value = false
+      const { targetVf, toleranceVf } = exercises[9].data
+      launchResult.value = Math.abs(predictedVf.value - targetVf) <= toleranceVf ? 'success' : 'fail'
+    }
+  }
+  requestAnimationFrame(frame)
+}
+
+/* ================================================================ */
+/* Validación unificada: ¿respondido? / ¿correcto?                   */
+/* ================================================================ */
+function isAnswered(i) {
+  switch (i) {
+    case 0: return gravitySelected.value !== null
+    case 1: return assemblySlots.value.every(s => s !== null)
+    case 2: return graphSelected.value !== null
+    case 3: return vectorStates.value.every(s => s !== null)
+    case 4: return numericConfirmed.value
+    case 5: return stopwatchStopped.value
+    case 6: return thrusterSelected.value !== null
+    case 7: return codeBlank.value.trim() !== ''
+    case 8: return knobConfirmed.value
+    case 9: return launchResult.value !== null
+    default: return false
+  }
+}
+
+function checkCorrect(i) {
+  const ex = exercises[i]
+  switch (i) {
+    case 0: return gravitySelected.value === ex.correct
+    case 1: return assemblySlots.value.every(s => s) && assemblySlots.value.map(s => s.label).join('|') === ex.data.tokens.join('|')
+    case 2: return graphSelected.value === ex.correct
+    case 3: return vectorStates.value.every((s, idx) => s === ex.data.scenarios[idx].correct)
+    case 4: return numericValue.value !== '' && Math.abs(Number(numericValue.value) - ex.data.answer) <= ex.data.tolerance
+    case 5: return stopwatchStopped.value && Math.abs(stopwatchElapsed.value - ex.data.answer) <= ex.data.tolerance
+    case 6: return thrusterSelected.value === ex.correct
+    case 7: return ex.data.accepted.includes(codeBlank.value.trim().toLowerCase())
+    case 8: return knobConfirmed.value && Math.abs(knobValue.value - ex.data.target) <= ex.data.tolerance
+    case 9: return launchResult.value === 'success'
+    default: return false
+  }
+}
+
+const correctCount = computed(() => exercises.reduce((sum, _, i) => sum + (checkCorrect(i) ? 1 : 0), 0))
+const scorePercentage = computed(() => Math.round((correctCount.value / exercises.length) * 100))
+
+/* ================================================================ */
+/* Reinicio completo                                                 */
+/* ================================================================ */
 function restartEvaluation() {
   currentQuestion.value = 0
-  userAnswers.value = {}
-  selectedOption.value = null
   isSubmitted.value = false
   showHint.value = false
-  hintsUsed.value = {}
+  Object.keys(hintsUsed).forEach(k => delete hintsUsed[k])
+
+  gravitySelected.value = null
+  initAssembly()
+  graphSelected.value = null
+  vectorStates.value = [null, null, null, null]
+  numericValue.value = ''
+  numericConfirmed.value = false
+  resetStopwatchState()
+  thrusterSelected.value = null
+  codeBlank.value = ''
+  knobValue.value = 0
+  knobConfirmed.value = false
+  launchT.value = ''
+  launchResult.value = null
+  launchAnimating.value = false
+  launchProgress.value = 0
 }
+
+onMounted(() => {
+  initAssembly()
+  window.addEventListener('pointermove', onKnobPointerMove)
+  window.addEventListener('pointerup', onKnobPointerUp)
+})
+onUnmounted(() => {
+  resetStopwatchState()
+  window.removeEventListener('pointermove', onKnobPointerMove)
+  window.removeEventListener('pointerup', onKnobPointerUp)
+})
 </script>
 
 <template>
   <div class="eval-container">
-    <!-- Header principal -->
     <header class="eval__header">
       <div class="eval__title">
         <span class="badge-pill">Módulo 4 · Evaluación Final</span>
         <h2>Evaluación de Física y MRUA</h2>
-        <p class="subtitle">Pon a prueba tus conocimientos sobre aceleración, desaceleración y análisis de movimiento.</p>
+        <p class="subtitle">Pon a prueba tus conocimientos sobre aceleración, desaceleración y análisis de movimiento con 10 desafíos interactivos.</p>
       </div>
     </header>
 
     <div class="eval__body">
-      <!-- Cuestionario Activo -->
+      <!-- ===================== CUESTIONARIO ACTIVO ===================== -->
       <section v-if="!isSubmitted" class="panel eval-panel">
         <div class="eval-card">
-          <!-- Barra superior de progreso -->
           <div class="progress-bar-container">
             <div class="progress-info">
-              <span>Pregunta {{ currentQuestion + 1 }} de {{ questions.length }}</span>
-              <button 
-                @click="triggerHint" 
-                class="btn-hint" 
-                :disabled="isHintUsedForCurrent"
-              >
+              <span>Ejercicio {{ currentQuestion + 1 }} de {{ exercises.length }}</span>
+              <button @click="triggerHint" class="btn-hint" :disabled="isHintUsedForCurrent">
                 💡 {{ isHintUsedForCurrent ? 'Pista Consultada' : 'Solicitar Pista' }}
               </button>
             </div>
             <div class="progress-track">
-              <div 
-                class="progress-fill" 
-                :style="{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }"
-              ></div>
+              <div class="progress-fill" :style="{ width: `${((currentQuestion + 1) / exercises.length) * 100}%` }"></div>
             </div>
           </div>
 
-          <!-- Cuadro de Pista -->
           <div v-if="showHint" class="hint-box">
             <div class="hint-content">
-              <span>💡 <strong>Pista del Tutor:</strong> {{ questions[currentQuestion].hint }}</span>
+              <span>💡 <strong>Pista del Tutor:</strong> {{ currentEx.hint }}</span>
               <button @click="showHint = false" class="btn-close-hint">✕</button>
             </div>
           </div>
 
-          <!-- Pregunta y Opciones -->
           <div class="question-box">
-            <span class="category-tag">{{ questions[currentQuestion].category }}</span>
-            <h3 class="question-text">{{ questions[currentQuestion].question }}</h3>
+            <span class="category-tag">{{ currentEx.category }}</span>
+            <h3 class="question-text">{{ currentEx.prompt }}</h3>
 
-            <div class="options-grid">
+            <!-- 0 · Selector de Gravedad Planetaria -->
+            <div v-if="currentEx.type === 'gravity-select'" class="planet-grid">
               <button
-                v-for="(option, idx) in questions[currentQuestion].options"
-                :key="idx"
-                class="option-btn"
-                :class="{ 'selected': selectedOption === idx }"
-                @click="selectOption(idx)"
+                v-for="p in currentEx.data.options" :key="p.name"
+                class="planet-card" :class="{ selected: gravitySelected === p.name }"
+                @click="gravitySelected = p.name"
               >
-                <span class="option-idx">{{ String.fromCharCode(65 + idx) }}</span>
-                <span class="option-text">{{ option }}</span>
+                <span class="planet-icon">{{ p.icon }}</span>
+                <span class="planet-name">{{ p.name }}</span>
+                <span class="planet-g">g = {{ p.g }} m/s²</span>
               </button>
+            </div>
+
+            <!-- 1 · Ensamble de la Ecuación -->
+            <div v-else-if="currentEx.type === 'equation-assembly'" class="assembly">
+              <div class="slot-row">
+                <div
+                  v-for="(slot, i) in assemblySlots" :key="i"
+                  class="slot" :class="{ filled: !!slot }"
+                  :draggable="!!slot"
+                  @dragstart="onSlotDragStart(i, $event)"
+                  @dragover.prevent
+                  @drop="onDropSlot(i, $event)"
+                  @click="onSlotClick(i)"
+                >{{ slot ? slot.label : '' }}</div>
+              </div>
+              <div class="pool-row" @dragover.prevent @drop="onDropPool($event)">
+                <div
+                  v-for="tok in assemblyPool" :key="tok.id"
+                  class="token" :class="{ selected: assemblySelectedToken === tok.id }"
+                  draggable="true"
+                  @dragstart="onPoolDragStart(tok, $event)"
+                  @click="onPoolTokenClick(tok)"
+                >{{ tok.label }}</div>
+              </div>
+              <p class="hint-key">💡 Arrastra las fichas a las casillas, o tócalas para seleccionarlas y luego toca una casilla.</p>
+            </div>
+
+            <!-- 2 · Decodificador de Telemetría -->
+            <div v-else-if="currentEx.type === 'graph-click'" class="graph-wrap">
+              <svg class="telemetry-chart" :viewBox="`0 0 ${CHART_W} ${CHART_H}`" preserveAspectRatio="none">
+                <line x1="0" :y1="CHART_H - 20" :x2="CHART_W" :y2="CHART_H - 20" stroke="rgba(255,255,255,0.15)" />
+                <polyline :points="chartPolyline" fill="none" stroke="#00b7ff" stroke-width="2.5" />
+                <rect
+                  v-for="(z, i) in chartZones" :key="i"
+                  :x="z.x" y="0" :width="z.w" :height="CHART_H - 20"
+                  class="graph-zone" :class="{ selected: graphSelected === i + 1 }"
+                  @click="graphSelected = i + 1"
+                />
+                <text
+                  v-for="(z, i) in chartZones" :key="'label' + i"
+                  :x="z.x + z.w / 2" :y="CHART_H - 4" text-anchor="middle" class="zone-label"
+                >Tramo {{ i + 1 }}</text>
+              </svg>
+            </div>
+
+            <!-- 3 · Clasificador de Vectores -->
+            <div v-else-if="currentEx.type === 'vector-classify'" class="vector-list">
+              <div v-for="(sc, i) in currentEx.data.scenarios" :key="i" class="vector-scenario">
+                <p>{{ sc.text }}</p>
+                <div class="segmented">
+                  <button :class="{ active: vectorStates[i] === 'plus' }" @click="vectorStates[i] = 'plus'">Acelerado (+)</button>
+                  <button :class="{ active: vectorStates[i] === 'zero' }" @click="vectorStates[i] = 'zero'">Constante (0)</button>
+                  <button :class="{ active: vectorStates[i] === 'minus' }" @click="vectorStates[i] = 'minus'">Frenado (−)</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4 · Calculadora de Ignición -->
+            <div v-else-if="currentEx.type === 'numeric-console'" class="console">
+              <div class="console-display-row">
+                <div class="console-display">{{ numericValue || '0' }}</div>
+                <div class="led" :class="!numericConfirmed ? 'idle' : (checkCorrect(4) ? 'green' : 'amber')"></div>
+              </div>
+              <div class="keypad">
+                <button v-for="k in ['1','2','3','4','5','6','7','8','9','-','0','.']" :key="k" @click="pressDigit(k)">{{ k }}</button>
+                <button class="key-clear" @click="clearNumeric">C</button>
+                <button class="key-back" @click="backspaceNumeric">⌫</button>
+              </div>
+              <button class="btn-eng run" @click="confirmNumeric">CONFIRMAR VALOR</button>
+            </div>
+
+            <!-- 5 · Temporizador de Maniobra Orbital -->
+            <div v-else-if="currentEx.type === 'stopwatch'" class="stopwatch">
+              <div class="stopwatch-display">{{ stopwatchElapsed.toFixed(2) }}s</div>
+              <button v-if="!stopwatchRunning && !stopwatchStopped" class="btn-eng run" @click="startStopwatch">▶ INICIAR CRONÓMETRO</button>
+              <button v-else-if="stopwatchRunning" class="btn-eng stop-btn" @click="stopStopwatch">⏹ DETENER MANIOBRA</button>
+              <button v-else class="btn-sec" @click="resetStopwatchState">↺ Reintentar cronómetro</button>
+            </div>
+
+            <!-- 6 · Selección de Propulsores -->
+            <div v-else-if="currentEx.type === 'thruster-select'" class="thruster-grid">
+              <button
+                v-for="th in currentEx.data.thrusters" :key="th.name"
+                class="thruster-card" :class="{ selected: thrusterSelected === th.name }"
+                @click="thrusterSelected = th.name"
+              >
+                <h4>Propulsor {{ th.name }}</h4>
+                <p class="thrust-val">{{ th.thrust }} m/s²</p>
+                <p class="thrust-desc">{{ th.desc }}</p>
+              </button>
+            </div>
+
+            <!-- 7 · Rellenar Código en Consola -->
+            <div v-else-if="currentEx.type === 'code-fill'" class="code-console">
+              <pre><code>let vf = 40;
+let v0 = 10;
+let t = 6;
+let aceleracion = (vf - <input class="code-input" v-model="codeBlank" placeholder="?" />) / t;</code></pre>
+            </div>
+
+            <!-- 8 · Perilla de Empuje de Motor -->
+            <div v-else-if="currentEx.type === 'knob'" class="knob-wrap">
+              <div
+                class="knob-base" ref="knobBase"
+                @pointerdown="onKnobPointerDown"
+              >
+                <div class="knob-track"></div>
+                <div class="knob-handle" :style="{ transform: `rotate(${angleFromValue(knobValue)}deg)` }">
+                  <span class="knob-dot"></span>
+                </div>
+              </div>
+              <p class="knob-readout">{{ knobValue.toFixed(2) }} m/s²</p>
+              <button class="btn-eng run" @click="confirmKnob">FIJAR VALOR</button>
+            </div>
+
+            <!-- 9 · Misión Final: Lanzamiento de Sonda -->
+            <div v-else-if="currentEx.type === 'launch-sim'" class="launch">
+              <label class="field">
+                <span>Tiempo de propulsión t (s)</span>
+                <input type="number" v-model.number="launchT" :disabled="launchAnimating || launchResult !== null" />
+              </label>
+              <button class="btn-eng run" :disabled="!launchT || launchAnimating || launchResult !== null" @click="fireProbe">
+                🚀 LANZAR SONDA
+              </button>
+              <div class="launch-track">
+                <div class="probe" :style="{ left: launchProgress + '%' }">🛰️</div>
+                <div class="launch-target">🎯 Objetivo</div>
+              </div>
+              <p v-if="launchResult" class="launch-result" :class="launchResult">
+                {{ launchResult === 'success'
+                  ? `🌌 ¡Órbita alcanzada! Velocidad final ≈ ${predictedVf.toFixed(1)} m/s`
+                  : `💥 Trayectoria fallida. Velocidad final ≈ ${predictedVf.toFixed(1)} m/s (objetivo 50 m/s)` }}
+              </p>
             </div>
           </div>
 
-          <!-- Controles de navegación -->
           <div class="eval-actions">
-            <button 
-              v-if="currentQuestion > 0" 
-              @click="prevQuestion" 
-              class="btn-sec"
-            >
-              ⬅️ Anterior
-            </button>
+            <button v-if="currentQuestion > 0" @click="prevQuestion" class="btn-sec">⬅️ Anterior</button>
 
-            <button 
-              v-if="currentQuestion < questions.length - 1" 
-              @click="nextQuestion" 
-              class="btn-eng run inline-btn"
-              :disabled="selectedOption === null"
-            >
-              <span>Siguiente ➡️</span>
-            </button>
+            <button
+              v-if="currentQuestion < exercises.length - 1"
+              @click="nextQuestion" class="btn-eng run inline-btn"
+              :disabled="!isAnswered(currentQuestion)"
+            ><span>Siguiente ➡️</span></button>
 
-            <button 
-              v-else 
-              @click="finishEvaluation" 
-              class="btn-eng run inline-btn btn-finish"
-              :disabled="selectedOption === null"
-            >
-              <span>🏆 Entregar Evaluación</span>
-            </button>
+            <button
+              v-else
+              @click="finishEvaluation" class="btn-eng run inline-btn btn-finish"
+              :disabled="!isAnswered(currentQuestion)"
+            ><span>🏆 Entregar Evaluación</span></button>
           </div>
         </div>
       </section>
 
-      <!-- Panel de Resultados -->
+      <!-- ===================== PANEL DE RESULTADOS ===================== -->
       <section v-else class="panel result-panel">
         <div class="result-card">
           <div class="result-header">
-            <div class="status-icon">
-              {{ scorePercentage >= 70 ? '🎉' : '📚' }}
-            </div>
+            <div class="status-icon">{{ scorePercentage >= 70 ? '🎉' : '📚' }}</div>
             <h3>{{ scorePercentage >= 70 ? '¡Misión Cumplida, Aprendiz!' : '¡Requiere Repaso Técnico!' }}</h3>
-            <p class="subtitle">
-              Obtuviste <strong>{{ correctCount }}</strong> de <strong>{{ questions.length }}</strong> respuestas correctas.
-            </p>
-
-            <div class="score-badge" :class="{ 'ok': scorePercentage >= 70, 'bad': scorePercentage < 70 }">
+            <p class="subtitle">Obtuviste <strong>{{ correctCount }}</strong> de <strong>{{ exercises.length }}</strong> respuestas correctas.</p>
+            <div class="score-badge" :class="{ ok: scorePercentage >= 70, bad: scorePercentage < 70 }">
               <span>{{ scorePercentage }}%</span>
               <small>{{ scorePercentage >= 70 ? 'Aprobado' : 'No Aprobado' }}</small>
             </div>
           </div>
 
-          <!-- Detalle de respuestas -->
           <div class="review-section">
             <h4>📋 Resumen de Desempeño:</h4>
-            <div 
-              v-for="(q, idx) in questions" 
-              :key="idx" 
-              class="review-item"
-              :class="userAnswers[idx] === q.correct ? 'item-ok' : 'item-bad'"
-            >
+            <div v-for="(ex, i) in exercises" :key="i" class="review-item" :class="checkCorrect(i) ? 'item-ok' : 'item-bad'">
               <div class="review-head">
-                <span>{{ idx + 1 }}. {{ q.question }}</span>
-                <span class="status-tag">
-                  {{ userAnswers[idx] === q.correct ? '✔ Correcta' : '✖ Incorrecta' }}
-                </span>
+                <span>{{ i + 1 }}. {{ ex.category }}</span>
+                <span class="status-tag">{{ checkCorrect(i) ? '✔ Correcta' : '✖ Incorrecta' }}</span>
               </div>
-              <p class="review-exp">💡 <strong>Explicación:</strong> {{ q.explanation }}</p>
+              <p class="review-exp">💡 <strong>Explicación:</strong> {{ ex.explanation }}</p>
             </div>
           </div>
 
-          <button class="btn-eng run" @click="restartEvaluation">
-            <span>🔄 Intentar de Nuevo</span>
-          </button>
+          <button class="btn-eng run" @click="restartEvaluation"><span>🔄 Intentar de Nuevo</span></button>
         </div>
       </section>
     </div>
@@ -256,382 +723,137 @@ function restartEvaluation() {
 
 <style scoped>
 .eval-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  max-width: 1050px;
-  margin: 0 auto;
+  display: flex; flex-direction: column; gap: 1.5rem;
+  max-width: 1050px; margin: 0 auto;
   background: rgba(11, 14, 20, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 1.75rem;
+  border-radius: 16px; padding: 1.75rem;
   backdrop-filter: blur(14px);
-  color: #d7e0f5;
-  font-family: inherit;
+  color: #d7e0f5; font-family: system-ui, -apple-system, sans-serif;
 }
-
-.eval__header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 1.25rem;
-}
-
+.eval__header { border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 1.25rem; }
 .badge-pill {
-  display: inline-block;
-  padding: 0.3rem 0.85rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
-  color: #39a900;
-  background: rgba(57, 169, 0, 0.12);
-  border: 1px solid rgba(57, 169, 0, 0.35);
-  border-radius: 50px;
-  margin-bottom: 0.6rem;
+  display: inline-block; padding: 0.3rem 0.85rem; font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.2px; color: #39a900;
+  background: rgba(57, 169, 0, 0.12); border: 1px solid rgba(57, 169, 0, 0.35);
+  border-radius: 50px; margin-bottom: 0.6rem;
 }
-
-.eval__title h2 {
-  margin: 0 0 0.25rem;
-  font-size: 1.35rem;
-  color: #fff;
-}
-
-.subtitle {
-  color: #b0c4de;
-  font-size: 0.88rem;
-  margin: 0;
-}
-
-.eval__body {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
+.eval__title h2 { margin: 0 0 0.25rem; font-size: 1.35rem; color: #fff; }
+.subtitle { color: #b0c4de; font-size: 0.88rem; margin: 0; }
+.eval__body { display: flex; flex-direction: column; gap: 1.5rem; }
+.panel { display: flex; flex-direction: column; gap: 1rem; }
 .eval-card, .result-card {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 1.5rem;
+  border-radius: 12px; padding: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Progress bar */
-.progress-bar-container {
-  margin-bottom: 1.25rem;
-}
+/* Barra de progreso y pista */
+.progress-bar-container { margin-bottom: 1.25rem; }
+.progress-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.85rem; }
+.btn-hint { background: transparent; border: 1px dashed rgba(255, 193, 7, 0.5); color: #ffc107; padding: 0.25rem 0.6rem; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
+.btn-hint:disabled { opacity: 0.5; cursor: not-allowed; }
+.progress-track { height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: #00b7ff; transition: width 0.3s ease; }
 
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.8rem;
-  color: #b0c4de;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
+.hint-box { background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; }
+.hint-content { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #ffca28; }
+.btn-close-hint { background: none; border: none; color: #ffca28; cursor: pointer; }
 
-.btn-hint {
-  background: rgba(255, 183, 3, 0.12);
-  border: 1px solid rgba(255, 183, 3, 0.35);
-  color: #ffb703;
-  padding: 0.35rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
+/* Caja de pregunta */
+.category-tag { font-size: 0.75rem; text-transform: uppercase; color: #00b7ff; font-weight: 700; }
+.question-text { font-size: 1.1rem; color: #fff; margin: 0.5rem 0 1.25rem 0; }
 
-.btn-hint:hover:not(:disabled) {
-  background: rgba(255, 183, 3, 0.25);
-}
+/* Componentes Interactivos */
+/* Ejercicio 0: Gravedad */
+.planet-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; }
+.planet-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.85rem; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; color: #fff; cursor: pointer; transition: all 0.2s; }
+.planet-card.selected { border-color: #00b7ff; background: rgba(0, 183, 255, 0.15); }
+.planet-icon { font-size: 1.5rem; }
+.planet-g { font-size: 0.75rem; color: #a0aec0; }
 
-.btn-hint:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
+/* Ejercicio 1: Drag and Drop */
+.assembly { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
+.slot-row, .pool-row { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; min-height: 48px; }
+.slot { width: 44px; height: 44px; border: 2px dashed rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; background: rgba(0,0,0,0.2); color: #00b7ff; }
+.slot.filled { border-style: solid; border-color: #00b7ff; }
+.token { padding: 0.5rem 0.85rem; background: #1a2332; border: 1px solid rgba(0, 183, 255, 0.4); border-radius: 8px; color: #fff; cursor: pointer; font-weight: bold; }
+.token.selected { border-color: #ffc107; background: rgba(255, 193, 7, 0.2); }
+.hint-key { font-size: 0.75rem; color: #8a99ad; }
 
-.progress-track {
-  height: 8px;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
+/* Ejercicio 2: Telemetría SVG */
+.graph-wrap { width: 100%; display: flex; justify-content: center; }
+.telemetry-chart { width: 100%; max-width: 450px; height: 160px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+.graph-zone { fill: rgba(255,255,255,0.02); cursor: pointer; stroke: rgba(255,255,255,0.05); }
+.graph-zone.selected { fill: rgba(0, 183, 255, 0.25); stroke: #00b7ff; }
+.zone-label { fill: #a0aec0; font-size: 10px; }
 
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #0077ff, #39a900);
-  transition: width 0.3s ease;
-}
+/* Ejercicio 3: Vectores */
+.vector-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.vector-scenario { background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 8px; display: flex; flex-direction: column; gap: 0.5rem; }
+.vector-scenario p { margin: 0; font-size: 0.85rem; }
+.segmented { display: flex; gap: 0.25rem; background: rgba(255,255,255,0.05); padding: 0.2rem; border-radius: 6px; }
+.segmented button { flex: 1; border: none; background: transparent; color: #a0aec0; padding: 0.35rem; font-size: 0.75rem; border-radius: 4px; cursor: pointer; }
+.segmented button.active { background: #00b7ff; color: #000; font-weight: bold; }
 
-/* Hint box */
-.hint-box {
-  background: rgba(255, 183, 3, 0.08);
-  border: 1px solid rgba(255, 183, 3, 0.25);
-  color: #ffd166;
-  padding: 0.85rem 1rem;
-  border-radius: 8px;
-  margin-bottom: 1.25rem;
-  font-size: 0.82rem;
-}
+/* Ejercicio 4: Teclado */
+.console { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; width: 220px; margin: 0 auto; }
+.console-display-row { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
+.console-display { flex: 1; background: #000; color: #00ff66; border: 1px solid rgba(0,255,102,0.3); padding: 0.5rem; text-align: right; font-family: monospace; font-size: 1.2rem; border-radius: 4px; }
+.led { width: 12px; height: 12px; border-radius: 50%; background: #444; }
+.led.green { background: #00ff66; box-shadow: 0 0 8px #00ff66; }
+.led.amber { background: #ffc107; box-shadow: 0 0 8px #ffc107; }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; width: 100%; }
+.keypad button { padding: 0.5rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px; cursor: pointer; }
 
-.hint-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.5rem;
-}
+/* Ejercicio 5: Cronómetro */
+.stopwatch { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.stopwatch-display { font-size: 2.5rem; font-family: monospace; color: #00b7ff; }
 
-.btn-close-hint {
-  background: none;
-  border: none;
-  color: #ffb703;
-  font-weight: bold;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
+/* Ejercicio 6: Propulsores */
+.thruster-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
+.thruster-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.85rem; text-align: left; color: #fff; cursor: pointer; }
+.thruster-card.selected { border-color: #39a900; background: rgba(57, 169, 0, 0.15); }
+.thrust-val { font-size: 1.2rem; color: #39a900; font-weight: bold; margin: 0.25rem 0; }
+.thrust-desc { font-size: 0.75rem; color: #8a99ad; margin: 0; }
 
-/* Question */
-.category-tag {
-  display: inline-block;
-  background: rgba(0, 183, 255, 0.12);
-  border: 1px solid rgba(0, 183, 255, 0.3);
-  color: #00b7ff;
-  padding: 0.25rem 0.6rem;
-  border-radius: 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  margin-bottom: 0.6rem;
-}
+/* Ejercicio 7: Código */
+.code-console { background: #0d1117; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem; font-family: monospace; }
+.code-input { background: rgba(255,255,255,0.1); border: 1px solid #00b7ff; color: #00ff66; width: 60px; text-align: center; font-family: monospace; border-radius: 4px; }
 
-.question-text {
-  color: #fff;
-  font-size: 1.1rem;
-  margin: 0 0 1.25rem;
-  line-height: 1.4;
-}
+/* Ejercicio 8: Perilla Knob */
+.knob-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.knob-base { width: 100px; height: 100px; border-radius: 50%; background: #1a2332; border: 3px solid #00b7ff; position: relative; touch-action: none; cursor: pointer; }
+.knob-handle { width: 100%; height: 100%; position: absolute; top: 0; left: 0; transition: transform 0.05s ease-out; }
+.knob-dot { width: 8px; height: 8px; background: #ffc107; border-radius: 50%; position: absolute; top: 10px; left: calc(50% - 4px); }
+.knob-readout { font-family: monospace; font-size: 1.1rem; color: #ffc107; margin: 0; }
 
-.options-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
+/* Ejercicio 9: Lanzamiento */
+.launch { display: flex; flex-direction: column; gap: 1rem; }
+.field { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; }
+.field input { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 0.5rem; border-radius: 6px; width: 120px; }
+.launch-track { height: 40px; background: rgba(0,0,0,0.4); border-radius: 20px; position: relative; display: flex; align-items: center; padding: 0 10px; overflow: hidden; }
+.probe { position: absolute; transition: left 0.1s linear; font-size: 1.2rem; }
+.launch-target { position: absolute; right: 15px; font-size: 0.75rem; color: #ffc107; }
+.launch-result.success { color: #00ff66; }
+.launch-result.fail { color: #ff5252; }
 
-.option-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.85rem 1rem;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  color: #b0c4de;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.2s ease;
-  font-family: inherit;
-  font-size: 0.88rem;
-}
+/* Botones de Acción */
+.eval-actions { display: flex; justify-content: space-between; margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem; }
+.btn-sec { background: rgba(255,255,255,0.08); border: none; color: #fff; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; }
+.btn-eng { background: #39a900; border: none; color: #fff; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.btn-eng:disabled { opacity: 0.5; cursor: not-allowed; }
+.stop-btn { background: #ff5252; }
 
-.option-btn:hover {
-  background: rgba(0, 183, 255, 0.08);
-  border-color: rgba(0, 183, 255, 0.4);
-  color: #fff;
-}
-
-.option-btn.selected {
-  background: rgba(57, 169, 0, 0.15);
-  border-color: #39a900;
-  color: #fff;
-}
-
-.option-idx {
-  width: 26px;
-  height: 26px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.78rem;
-  color: #00b7ff;
-  flex-shrink: 0;
-}
-
-.option-btn.selected .option-idx {
-  background: #39a900;
-  color: #fff;
-}
-
-/* Actions */
-.eval-actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 1.5rem;
-  align-items: center;
-}
-
-.btn-sec {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #b0c4de;
-  padding: 0.65rem 1.1rem;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-sec:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.inline-btn {
-  margin-top: 0 !important;
-  width: auto !important;
-  margin-left: auto;
-}
-
-.btn-finish {
-  background: linear-gradient(135deg, #00324d, #39a900) !important;
-}
-
-.btn-eng {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  padding: 0.75rem 1.25rem;
-  border-radius: 8px;
-  font-weight: 700;
-  font-size: 0.85rem;
-  cursor: pointer;
-  border: none;
-  transition: all 0.3s ease;
-}
-
-.btn-eng.run {
-  background: linear-gradient(135deg, #0077ff, #39a900);
-  color: #fff;
-  box-shadow: 0 4px 15px rgba(0, 119, 255, 0.3);
-}
-
-.btn-eng:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-/* Results section */
-.result-card {
-  text-align: center;
-}
-
-.status-icon {
-  font-size: 3rem;
-  margin-bottom: 0.4rem;
-}
-
-.result-header h3 {
-  color: #fff;
-  font-size: 1.3rem;
-  margin: 0 0 0.25rem;
-}
-
-.score-badge {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  margin: 1.25rem auto;
-  font-size: 1.6rem;
-  font-weight: 900;
-}
-
-.score-badge.ok {
-  background: rgba(57, 169, 0, 0.12);
-  border: 3px solid #39a900;
-  color: #39a900;
-}
-
-.score-badge.bad {
-  background: rgba(255, 77, 77, 0.12);
-  border: 3px solid #ff4d4d;
-  color: #ff4d4d;
-}
-
-.score-badge small {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 700;
-}
-
-.review-section {
-  text-align: left;
-  margin: 1.5rem 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.review-section h4 {
-  color: #00b7ff;
-  margin: 0 0 0.25rem;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.review-item {
-  background: rgba(0, 0, 0, 0.3);
-  padding: 0.85rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.review-item.item-ok {
-  border-left: 4px solid #39a900;
-}
-
-.review-item.item-bad {
-  border-left: 4px solid #ff4d4d;
-}
-
-.review-head {
-  display: flex;
-  justify-content: space-between;
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: #fff;
-  margin-bottom: 0.35rem;
-  gap: 1rem;
-}
-
-.status-tag {
-  font-size: 0.72rem;
-  flex-shrink: 0;
-}
-
-.item-ok .status-tag { color: #39a900; }
-.item-bad .status-tag { color: #ff4d4d; }
-
-.review-exp {
-  margin: 0;
-  font-size: 0.78rem;
-  color: #b0c4de;
-}
+/* Panel de Resultados */
+.result-card { text-align: center; }
+.status-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+.score-badge { display: inline-flex; flex-direction: column; padding: 0.75rem 1.5rem; border-radius: 12px; margin: 1rem 0; font-weight: bold; font-size: 1.5rem; }
+.score-badge.ok { background: rgba(57, 169, 0, 0.2); color: #39a900; border: 1px solid #39a900; }
+.score-badge.bad { background: rgba(255, 82, 82, 0.2); color: #ff5252; border: 1px solid #ff5252; }
+.review-section { text-align: left; margin: 1.5rem 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.review-item { padding: 0.85rem; border-radius: 8px; background: rgba(0,0,0,0.2); }
+.review-item.item-ok { border-left: 4px solid #39a900; }
+.review-item.item-bad { border-left: 4px solid #ff5252; }
+.review-head { display: flex; justify-content: space-between; font-weight: bold; font-size: 0.85rem; }
+.review-exp { font-size: 0.8rem; color: #a0aec0; margin: 0.35rem 0 0 0; }
 </style>
