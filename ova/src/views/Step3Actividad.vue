@@ -91,6 +91,16 @@
         </div>
       </section>
     </div>
+
+    <!-- Navegación corregida para apuntar a la evaluación -->
+    <footer class="navigation-footer">
+      < 
+      <!-- Ruta apuntando a la vista de evaluación (Modifica '/evaluacion' si tu ruta en el router tiene otro path ej: '/step3-evaluacion') -->
+     <router-link to="/nivel-4" class="btn-nav primary">
+  <span>Ir a la Evaluación</span>
+  <span class="arrow">→</span>
+</router-link>
+    </footer>
   </div>
 </template>
 
@@ -310,5 +320,67 @@ function playAnimation() {
 .btn-eng:hover {
   opacity: 0.9;
   transform: translateY(-1px);
+}
+
+/* Estilos de la barra de navegación inferior */
+.navigation-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid rgba(56, 189, 248, 0.15);
+  padding-top: 1.25rem;
+}
+
+.btn-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.btn-nav.secondary {
+  background: rgba(15, 23, 42, 0.65);
+  color: #cbd5e1;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.btn-nav.secondary:hover {
+  background: rgba(56, 189, 248, 0.1);
+  color: #fff;
+}
+
+.btn-nav.primary {
+  background: linear-gradient(135deg, #0284c7, #38bdf8);
+  color: #030712;
+  box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+}
+
+.btn-nav.primary:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+}
+
+.arrow {
+  transition: transform 0.3s ease;
+}
+
+.btn-nav.primary:hover .arrow {
+  transform: translateX(4px);
+}
+
+@media (max-width: 768px) {
+  .navigation-footer {
+    flex-direction: column;
+  }
+  .btn-nav {
+    justify-content: center;
+  }
 }
 </style>

@@ -15,18 +15,38 @@
       </p>
     </div>
 
-    <!-- Banner Multimedia Interactivo 3D con Efectos Visuales -->
+    <!-- Banner Multimedia Interactivo 3D con Simulador Funcional -->
     <div class="hero-media-banner" ref="bannerRef">
       <div class="cyber-grid-overlay"></div>
       <div class="particle-effect"></div>
+      
       <div class="banner-content-box">
-        <div class="banner-badge">🚀 Módulo Espacial en Directo</div>
-        <h3>Vector de Aceleración y Gravedad Cero</h3>
-        <p>Interactúa con los controles inferiores para modificar los parámetros en vivo.</p>
+        <div class="banner-badge">🚀 Simulador de Propulsión en Vivo</div>
+        <h3>Control de Vector de Aceleración</h3>
+        <p>Ajusta los controles deslizantes para calcular la velocidad final instantánea de la nave.</p>
+        
+        <!-- Controles Interactivos del Simulador -->
+        <div class="simulator-controls">
+          <div class="control-group">
+            <label>Aceleración ($a$): <span>{{ simAcceleration }} m/s²</span></label>
+            <input type="range" min="1" max="10" step="0.5" v-model.number="simAcceleration" class="cyber-slider" />
+          </div>
+          <div class="control-group">
+            <label>Tiempo ($t$): <span>{{ simTime }} s</span></label>
+            <input type="range" min="1" max="10" step="1" v-model.number="simTime" class="cyber-slider" />
+          </div>
+        </div>
       </div>
+
       <div class="live-vector-preview">
-        <div class="vector-line"></div>
-        <span class="vector-label">a = 3.5 m/s²</span>
+        <div class="vector-readout">
+          <span class="readout-title">Velocidad Final</span>
+          <span class="readout-value">{{ calculatedFinalSpeed.toFixed(1) }} <small>m/s</small></span>
+        </div>
+        <div class="vector-line" :style="{ transform: `rotate(-${Math.min(calculatedFinalSpeed * 3, 75)}deg)` }">
+          <span class="vector-particle"></span>
+        </div>
+        <span class="vector-label">a = {{ simAcceleration }} m/s²</span>
       </div>
     </div>
 
@@ -37,6 +57,8 @@
         :key="index"
         class="info-card"
         ref="cardsRef"
+        @mousemove="handleTilt"
+        @mouseleave="resetTilt"
       >
         <div
           class="card-stage-360"
@@ -47,7 +69,7 @@
         >
           <div class="turntable-glow"></div>
           <div class="object-360-wrapper" :style="{ transform: `rotateY(${rotations[index]}deg)` }">
-            <div class="object-core" :style="{ backgroundImage: `url(${card.bgImage})` }">
+            <div class="object-core" :style="{ '--card-glow': card.glow }">
               <span class="object-icon">{{ card.icon }}</span>
               <div class="object-ring"></div>
             </div>
@@ -69,38 +91,65 @@
         <h3>Selecciona un Estado Físico para Analizar</h3>
       </div>
       <div class="types-grid">
-        <div 
-          v-for="type in accelerationTypes" 
+        <div
+          v-for="type in accelerationTypes"
           :key="type.id"
-          class="type-card" 
-          @click="selectType(type.id)" 
+          class="type-card"
+          @click="selectType(type.id)"
           :class="{ active: activeType === type.id }"
         >
-          <div class="type-icon">{{ type.icon }}</div>
+          <div class="type-icon" :class="'icon-' + type.id">{{ type.icon }}</div>
           <h4>{{ type.title }}</h4>
           <p>{{ type.desc }}</p>
+          <svg class="mini-trend" viewBox="0 0 60 24" preserveAspectRatio="none">
+            <polyline :points="type.trendPoints" fill="none" stroke="currentColor" stroke-width="2.5" />
+          </svg>
           <div class="active-glow-border"></div>
         </div>
       </div>
       <!-- Panel de Detalles Dinámico según la selección -->
-      <div class="dynamic-info-panel" v-if="currentTypeData">
-        <span class="panel-tag">Análisis en tiempo real:</span>
-        <p><strong>Efecto Visual:</strong> {{ currentTypeData.detail }}</p>
-      </div>
+      <transition name="fade-swap" mode="out-in">
+        <div class="dynamic-info-panel" v-if="currentTypeData" :key="activeType">
+          <span class="panel-tag">Análisis en tiempo real:</span>
+          <p><strong>Efecto Visual:</strong> {{ currentTypeData.detail }}</p>
+        </div>
+      </transition>
     </div>
 
     <!-- Caso Práctico Guiado en Formato Infográfico Paso a Paso -->
-    <div class="guided-example-card" ref="exampleRef">
+    <div class="guided-example-card" ref="exampleRef" @mousemove="handleTilt" @mouseleave="resetTilt">
       <div class="example-header-flex">
         <div class="example-tag">💡 Infografía Interactiva · Caso Práctico</div>
         <span class="badge-difficulty">Nivel: Introductorio</span>
       </div>
       <h3>¿Cómo calcular la aceleración de despegue?</h3>
-      <p>Si una sonda espacial aumenta su velocidad de <strong>4 m/s</strong> a <strong>18 m/s</strong> en un intervalo de <strong>4 segundos</strong>:</p>
-      <div class="mini-formula-steps">
-        <div class="step-item"><span>1. Sustituimos valores:</span> <code>a = (18 - 4) / 4</code></div>
-        <div class="step-item"><span>2. Resolvemos la diferencia:</span> <code>a = 14 / 4</code></div>
-        <div class="step-item highlight-result"><span>3. Resultado final:</span> <strong>a = 3.5 m/s² (Aceleración positiva constante)</strong></div>
+
+      <div class="example-body">
+        <div class="example-text">
+          <p>Si una sonda espacial aumenta su velocidad de <strong>4 m/s</strong> a <strong>18 m/s</strong> en un intervalo de <strong>4 segundos</strong>:</p>
+          <div class="mini-formula-steps">
+            <div class="step-item"><span>1. Sustituimos valores:</span> <code>a = (18 - 4) / 4</code></div>
+            <div class="step-item"><span>2. Resolvemos la diferencia:</span> <code>a = 14 / 4</code></div>
+            <div class="step-item highlight-result"><span>3. Resultado final:</span> <strong>a = 3.5 m/s² (Aceleración positiva constante)</strong></div>
+          </div>
+        </div>
+
+        <div class="example-visual">
+          <span class="visual-caption">Comparación de velocidad</span>
+          <div class="speed-compare">
+            <div class="speed-bar-row">
+              <span class="bar-label">v₀</span>
+              <div class="bar-track"><div class="bar-fill v0-fill" style="--w: 22%"></div></div>
+              <span class="bar-num">4 m/s</span>
+            </div>
+            <div class="speed-bar-row">
+              <span class="bar-label">v_f</span>
+              <div class="bar-track"><div class="bar-fill vf-fill" style="--w: 100%"></div></div>
+              <span class="bar-num">18 m/s</span>
+            </div>
+          </div>
+          <span class="visual-note">↑ La sonda gana 3.5 m/s de velocidad cada segundo.</span>
+        </div>
       </div>
     </div>
 
@@ -125,27 +174,51 @@
       <div class="theory-graph-card">
         <div class="graph-header">
           <h3>📈 Comportamiento en el Gráfico Velocidad vs. Tiempo</h3>
-          <p>La pendiente de la línea recta representa visualmente la aceleración constante del objeto.</p>
+          <p>La pendiente de la línea recta representa visualmente la aceleración constante del objeto. Observa el punto en movimiento.</p>
         </div>
         <div class="graph-viewport">
           <svg viewBox="0 0 500 180" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <filter id="lineGlow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Cuadrícula de fondo -->
+            <line v-for="n in 4" :key="'gy' + n" x1="50" :y1="20 + n * 24" x2="450" :y2="20 + n * 24" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+
             <line x1="50" y1="140" x2="450" y2="140" stroke="rgba(255,255,255,0.3)" stroke-width="2" />
             <line x1="50" y1="20" x2="50" y2="140" stroke="rgba(255,255,255,0.3)" stroke-width="2" />
-            
+
             <text x="460" y="144" fill="#b0c4de" font-size="11">t (s)</text>
             <text x="35" y="25" fill="#b0c4de" font-size="11">v (m/s)</text>
 
-            <!-- Línea que cambia dinámicamente según el tipo seleccionado -->
-            <line 
-              x1="50" 
-              :y1="currentGraphLine.y1" 
-              x2="380" 
-              :y2="currentGraphLine.y2" 
-              stroke="#00ffcc" 
-              stroke-width="3" 
+            <!-- Línea que se dibuja a sí misma y cambia según el tipo seleccionado -->
+            <line
+              :key="'line-' + activeType"
+              x1="50"
+              :y1="currentGraphLine.y1"
+              x2="380"
+              :y2="currentGraphLine.y2"
+              stroke="#00ffcc"
+              stroke-width="3"
+              stroke-dasharray="400"
+              stroke-dashoffset="400"
+              filter="url(#lineGlow)"
               class="animated-graph-line"
             />
-            
+
+            <!-- Punto que recorre la línea en tiempo real: el objeto acelerando -->
+            <circle r="5" fill="#ffffff" filter="url(#lineGlow)" :key="'dot-' + activeType">
+              <animate attributeName="cx" values="50;380" dur="1.8s" begin="0.4s" repeatCount="indefinite" />
+              <animate :attributeName="'cy'" :values="`${currentGraphLine.y1};${currentGraphLine.y2}`" dur="1.8s" begin="0.4s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0;1;1;0" dur="1.8s" begin="0.4s" repeatCount="indefinite" />
+            </circle>
+
             <circle cx="50" :cy="currentGraphLine.y1" r="5" fill="#00ffcc" />
             <text x="30" :y="currentGraphLine.y1 + 4" fill="#00ffcc" font-size="10">v₀</text>
 
@@ -178,28 +251,38 @@ import { animate, utils } from 'animejs'
 
 const activeType = ref('positive')
 
+// Variables para el nuevo simulador interactivo del banner
+const simAcceleration = ref(3.5)
+const simTime = ref(4)
+const calculatedFinalSpeed = computed(() => {
+  return simAcceleration.value * simTime.value
+})
+
 const accelerationTypes = [
   {
     id: 'positive',
     icon: '🚀',
     title: 'Positiva (Aceleración)',
     desc: 'El cuerpo aumenta su velocidad módulo por segundo.',
-    detail: 'La velocidad final es mayor que la inicial ($v_f > v_0$). La pendiente del gráfico es ascendente.'
+    detail: 'La velocidad final es mayor que la inicial (v_f > v_0). La pendiente del gráfico es ascendente.',
+    trendPoints: '0,20 30,12 60,2',
   },
   {
     id: 'negative',
     icon: '⚓',
     title: 'Negativa (Frenado)',
     desc: 'Reduce su velocidad progresivamente en el tiempo.',
-    detail: 'La velocidad final es menor que la inicial ($v_f < v_0$). La pendiente del gráfico es descendente (desaceleración).'
+    detail: 'La velocidad final es menor que la inicial (v_f < v_0). La pendiente del gráfico es descendente (desaceleración).',
+    trendPoints: '0,2 30,12 60,20',
   },
   {
     id: 'centripetal',
     icon: '🔄',
     title: 'Centrípeta (Dirección)',
     desc: 'Cambia la dirección de la trayectoria manteniendo el módulo.',
-    detail: 'El vector de velocidad cambia de rumbo constantemente apuntando siempre hacia el centro de la curvatura.'
-  }
+    detail: 'El vector de velocidad cambia de rumbo constantemente apuntando siempre hacia el centro de la curvatura.',
+    trendPoints: '0,11 15,4 30,11 45,18 60,11',
+  },
 ]
 
 const currentTypeData = computed(() => {
@@ -209,7 +292,7 @@ const currentTypeData = computed(() => {
 const currentGraphLine = computed(() => {
   if (activeType.value === 'positive') return { y1: 120, y2: 50 }
   if (activeType.value === 'negative') return { y1: 50, y2: 120 }
-  return { y1: 85, y2: 85 } // Constante / centrípeta neutra
+  return { y1: 85, y2: 85 }
 })
 
 function selectType(id) {
@@ -221,19 +304,19 @@ const explanationCards = [
     icon: '⚡',
     title: '¿Qué es la Aceleración?',
     text: 'Magnitud vectorial que mide cómo cambia la velocidad en el tiempo. Un resultado positivo indica ganancia de velocidad; uno negativo, desaceleración.',
-    bgImage: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=400&auto=format&fit=crop'
+    glow: 'rgba(0, 255, 204, 0.55)',
   },
   {
     icon: '📈',
     title: 'Gráficos Velocidad vs. Tiempo',
     text: 'La pendiente de la recta en el gráfico representa la aceleración. Una línea ascendente denota aumento de velocidad constante.',
-    bgImage: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=400&auto=format&fit=crop'
+    glow: 'rgba(0, 119, 255, 0.55)',
   },
   {
     icon: '🌌',
     title: 'Contexto de Ingeniería',
     text: 'Fundamental para calcular la fuerza de empuje en propulsores espaciales y asegurar transiciones seguras en trayectorias orbitales.',
-    bgImage: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=400&auto=format&fit=crop'
+    glow: 'rgba(168, 85, 247, 0.55)',
   },
 ]
 
@@ -327,6 +410,19 @@ function stopDrag(index, event) {
     }
   }
 }
+
+function handleTilt(event) {
+  const card = event.currentTarget
+  const rect = card.getBoundingClientRect()
+  const px = (event.clientX - rect.left) / rect.width - 0.5
+  const py = (event.clientY - rect.top) / rect.height - 0.5
+  card.style.setProperty('--ry', `${px * 10}deg`)
+  card.style.setProperty('--rx', `${-py * 10}deg`)
+}
+function resetTilt(event) {
+  event.currentTarget.style.setProperty('--rx', '0deg')
+  event.currentTarget.style.setProperty('--ry', '0deg')
+}
 </script>
 
 <style scoped>
@@ -408,10 +504,9 @@ function stopDrag(index, event) {
   margin: 0 auto;
 }
 
-/* Banner Multimedia 3D Profundo */
+/* Banner Multimedia 3D con Simulador Funcional */
 .hero-media-banner {
   position: relative;
-  height: 220px;
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid rgba(0, 255, 204, 0.4);
@@ -421,20 +516,41 @@ function stopDrag(index, event) {
   align-items: center;
   justify-content: space-between;
   padding: 2rem;
+  gap: 1.5rem;
 }
 
 .cyber-grid-overlay {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgba(0, 255, 204, 0.05) 1px, transparent 1px), 
+  background-image: linear-gradient(rgba(0, 255, 204, 0.05) 1px, transparent 1px),
                     linear-gradient(90deg, rgba(0, 255, 204, 0.05) 1px, transparent 1px);
   background-size: 25px 25px;
   pointer-events: none;
 }
 
+.particle-effect {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(2px 2px at 120px 80px, rgba(0, 255, 204, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 200px 40px, rgba(255, 255, 255, 0.45), transparent);
+  background-repeat: repeat;
+  background-size: 300px 170px;
+  animation: driftParticles 16s linear infinite;
+  opacity: 0.8;
+}
+
+@keyframes driftParticles {
+  from { background-position: 0 0; }
+  to { background-position: -300px -170px; }
+}
+
 .banner-content-box {
   z-index: 2;
-  max-width: 550px;
+  flex: 1;
+  max-width: 520px;
 }
 
 .banner-badge {
@@ -453,29 +569,107 @@ function stopDrag(index, event) {
 
 .banner-content-box h3 {
   color: #ffffff;
-  font-size: 1.4rem;
-  margin: 0 0 0.4rem;
+  font-size: 1.3rem;
+  margin: 0 0 0.3rem;
   font-weight: 800;
 }
 
 .banner-content-box p {
   color: #b0c4de;
-  font-size: 0.9rem;
-  margin: 0;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
 }
 
+/* Controles de Sliders */
+.simulator-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.8rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 204, 0.2);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.control-group label {
+  font-size: 0.75rem;
+  color: #b0c4de;
+  display: flex;
+  justify-content: space-between;
+}
+
+.control-group label span {
+  color: #00ffcc;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.cyber-slider {
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  outline: none;
+}
+
+.cyber-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #00ffcc;
+  cursor: pointer;
+  box-shadow: 0 0 8px #00ffcc;
+  transition: transform 0.1s;
+}
+
+.cyber-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Preview de Resultados en Vivo */
 .live-vector-preview {
   position: relative;
-  width: 120px;
-  height: 120px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px dashed rgba(0, 255, 204, 0.5);
+  width: 140px;
+  height: 140px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 255, 204, 0.4);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2;
-  box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
+  box-shadow: 0 0 25px rgba(0, 255, 204, 0.25);
+  flex-shrink: 0;
+}
+
+.vector-readout {
+  position: absolute;
+  top: 15px;
+  text-align: center;
+  z-index: 3;
+}
+
+.readout-title {
+  display: block;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  color: #b0c4de;
+  letter-spacing: 0.5px;
+}
+
+.readout-value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #00ffcc;
+  font-family: monospace;
 }
 
 .vector-line {
@@ -484,21 +678,41 @@ function stopDrag(index, event) {
   height: 3px;
   background: linear-gradient(90deg, #0077ff, #00ffcc);
   box-shadow: 0 0 10px #00ffcc;
-  transform: rotate(-35deg);
+  transition: transform 0.3s ease;
+}
+
+.vector-particle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px #fff, 0 0 12px #00ffcc;
+  transform: translateY(-50%);
+  animation: travelParticle 1.5s linear infinite;
+}
+
+@keyframes travelParticle {
+  0% { left: 0%; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
 }
 
 .vector-label {
   position: absolute;
-  bottom: 12px;
-  font-size: 0.7rem;
+  bottom: 15px;
+  font-size: 0.65rem;
   color: #00ffcc;
   font-weight: 700;
-  background: rgba(6, 15, 35, 0.8);
+  background: rgba(6, 15, 35, 0.9);
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
 }
 
-/* Tarjetas con translúcidos estilo sci-fi */
+/* Tarjetas y resto de estilos se mantienen idénticos */
 .cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -506,13 +720,16 @@ function stopDrag(index, event) {
 }
 
 .info-card {
+  --rx: 0deg;
+  --ry: 0deg;
   background: rgba(6, 15, 35, 0.75);
   border: 1px solid rgba(0, 255, 204, 0.25);
   border-radius: 14px;
   padding: 1.4rem;
   backdrop-filter: blur(12px);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: all 0.3s ease;
+  transition: transform 0.15s ease, border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+  transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -521,8 +738,8 @@ function stopDrag(index, event) {
 .info-card:hover {
   border-color: rgba(0, 255, 204, 0.7);
   background: rgba(10, 25, 50, 0.9);
-  box-shadow: 0 10px 30px rgba(0, 255, 204, 0.25);
-  transform: translateY(-4px);
+  box-shadow: 0 14px 34px rgba(0, 255, 204, 0.25);
+  transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-4px);
 }
 
 .card-stage-360 {
@@ -568,8 +785,7 @@ function stopDrag(index, event) {
   position: relative;
   width: 68px;
   height: 68px;
-  background-size: cover;
-  background-position: center;
+  background: radial-gradient(circle at 30% 30%, var(--card-glow, rgba(0, 255, 204, 0.5)), rgba(6, 15, 35, 0.95) 72%);
   border: 2px solid rgba(0, 255, 204, 0.7);
   border-radius: 50%;
   display: flex;
@@ -580,7 +796,7 @@ function stopDrag(index, event) {
 
 .object-icon {
   font-size: 1.6rem;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
   z-index: 2;
 }
 
@@ -630,6 +846,8 @@ function stopDrag(index, event) {
 
 /* Tipos de Aceleración Interactivos Reales */
 .accel-types-section {
+  position: relative;
+  overflow: hidden;
   background: rgba(6, 15, 35, 0.75);
   border: 1px solid rgba(0, 255, 204, 0.3);
   border-radius: 14px;
@@ -639,6 +857,19 @@ function stopDrag(index, event) {
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
+}
+
+.accel-types-section::before {
+  content: '02';
+  position: absolute;
+  top: -18px;
+  right: 12px;
+  font-size: 7rem;
+  font-weight: 900;
+  color: rgba(0, 255, 204, 0.05);
+  line-height: 1;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .section-title-wrapper {
@@ -689,7 +920,16 @@ function stopDrag(index, event) {
 .type-card p {
   color: #b0c4de;
   font-size: 0.8rem;
-  margin: 0;
+  margin: 0 0 0.5rem;
+}
+
+.mini-trend {
+  width: 100%;
+  height: 22px;
+  color: rgba(0, 255, 204, 0.5);
+}
+.type-card.active .mini-trend {
+  color: #00ffcc;
 }
 
 .dynamic-info-panel {
@@ -704,6 +944,19 @@ function stopDrag(index, event) {
   gap: 0.3rem;
 }
 
+.fade-swap-enter-active,
+.fade-swap-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fade-swap-enter-from {
+  opacity: 0;
+  transform: translateY(4px);
+}
+.fade-swap-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 .panel-tag {
   font-size: 0.68rem;
   text-transform: uppercase;
@@ -714,6 +967,10 @@ function stopDrag(index, event) {
 
 /* Caso Práctico Guiado (Infografía) */
 .guided-example-card {
+  --rx: 0deg;
+  --ry: 0deg;
+  position: relative;
+  overflow: hidden;
   background: rgba(6, 15, 35, 0.75);
   border: 1px solid rgba(0, 255, 204, 0.35);
   border-radius: 14px;
@@ -723,6 +980,21 @@ function stopDrag(index, event) {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  transform: perspective(1000px) rotateX(var(--rx)) rotateY(var(--ry));
+  transition: transform 0.15s ease;
+}
+
+.guided-example-card::before {
+  content: '03';
+  position: absolute;
+  top: -18px;
+  right: 12px;
+  font-size: 7rem;
+  font-weight: 900;
+  color: rgba(0, 255, 204, 0.05);
+  line-height: 1;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .example-header-flex {
@@ -759,6 +1031,19 @@ function stopDrag(index, event) {
   margin: 0;
 }
 
+.example-body {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+@media (max-width: 700px) {
+  .example-body {
+    grid-template-columns: 1fr;
+  }
+}
+
 .mini-formula-steps {
   display: flex;
   flex-direction: column;
@@ -769,6 +1054,7 @@ function stopDrag(index, event) {
   border-left: 3px solid #00ffcc;
   font-size: 0.88rem;
   color: #e2e8f0;
+  margin-top: 0.75rem;
 }
 
 .step-item code {
@@ -786,6 +1072,79 @@ function stopDrag(index, event) {
   padding-top: 0.4rem;
 }
 
+.example-visual {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 255, 204, 0.2);
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.visual-caption {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #00ffcc;
+  font-weight: 700;
+}
+
+.speed-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.speed-bar-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 56px;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bar-label {
+  font-size: 0.78rem;
+  color: #b0c4de;
+  font-weight: 700;
+}
+
+.bar-track {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #0077ff, #00ffcc);
+  width: 0;
+  animation: growBar 1s ease forwards;
+  animation-delay: 0.4s;
+}
+
+.bar-fill.vf-fill {
+  animation-delay: 0.75s;
+}
+
+@keyframes growBar {
+  to { width: var(--w); }
+}
+
+.bar-num {
+  font-size: 0.75rem;
+  color: #e2e8f0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.visual-note {
+  font-size: 0.74rem;
+  color: #b0c4de;
+}
+
 /* Fórmula con fondo translúcido */
 .formula-section {
   display: flex;
@@ -794,6 +1153,8 @@ function stopDrag(index, event) {
 }
 
 .formula-box {
+  position: relative;
+  overflow: hidden;
   background: rgba(6, 15, 35, 0.75);
   border: 1px solid rgba(0, 255, 204, 0.25);
   border-radius: 14px;
@@ -801,6 +1162,24 @@ function stopDrag(index, event) {
   text-align: center;
   backdrop-filter: blur(12px);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.formula-box::before {
+  content: '04';
+  position: absolute;
+  top: -18px;
+  left: 12px;
+  font-size: 7rem;
+  font-weight: 900;
+  color: rgba(0, 255, 204, 0.05);
+  line-height: 1;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.formula-tag, .math-expression, .formula-desc {
+  position: relative;
+  z-index: 1;
 }
 
 .formula-tag {
@@ -881,7 +1260,11 @@ function stopDrag(index, event) {
 }
 
 .animated-graph-line {
-  transition: all 0.4s ease-in-out;
+  animation: drawLine 0.9s ease forwards;
+}
+
+@keyframes drawLine {
+  to { stroke-dashoffset: 0; }
 }
 
 /* Navegación */
@@ -943,9 +1326,12 @@ function stopDrag(index, event) {
   .hero-media-banner {
     flex-direction: column;
     height: auto;
-    gap: 1rem;
+    gap: 1.5rem;
     text-align: center;
     padding: 1.5rem;
+  }
+  .banner-content-box {
+    max-width: 100%;
   }
   .live-vector-preview {
     margin: 0 auto;
