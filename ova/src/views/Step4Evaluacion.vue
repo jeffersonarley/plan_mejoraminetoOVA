@@ -128,10 +128,10 @@ const exercises = [
     id: 8,
     type: 'knob',
     category: '⛽ Perilla de Empuje de Motor',
-    prompt: 'Gira la perilla hasta ajustar el empuje del motor exactamente a 2.4 m/s².',
-    hint: 'Arrastra el indicador de la perilla con el mouse o el dedo; el valor actual se muestra debajo.',
+    prompt: 'Durante el descenso final, el módulo debe pasar de v₀ = 18 m/s a v_f = 6 m/s en t = 5 s. Calcula la desaceleración necesaria y gira la perilla hasta ese valor exacto.',
+    hint: 'La desaceleración es el cambio de velocidad dividido entre el tiempo: a = (v₀ − v_f) / t.',
     data: { target: 2.4, max: 4, tolerance: 0.15 },
-    explanation: 'El valor solicitado por la misión era 2.4 m/s² de empuje.',
+    explanation: 'a = (18 − 6) / 5 = 12 / 5 = 2.4 m/s². Ese es el valor exacto que debía marcar la perilla.',
   },
   {
     id: 9,
@@ -489,6 +489,20 @@ function checkCorrect(i) {
 const correctCount = computed(() => exercises.reduce((sum, _, i) => sum + (checkCorrect(i) ? 1 : 0), 0))
 const scorePercentage = computed(() => Math.round((correctCount.value / exercises.length) * 100))
 
+const PASS_MESSAGES = [
+  { title: '🌟 ¡Excelente, comandante!', body: 'Dominaste la misión por completo. Tus cálculos de aceleración son precisos y tu control de la nave, impecable.' },
+  { title: '🎉 ¡Gran trabajo!', body: 'Superaste el desafío con un desempeño sólido. La base ya puede confiar en tus cálculos de vuelo.' },
+]
+const FAIL_MESSAGES = [
+  { title: '📚 Casi lo logras', body: 'Estuviste cerca, pero algunos cálculos de la misión fallaron. Revisa las explicaciones de cada ejercicio y vuelve a intentarlo.' },
+  { title: '🛠️ Necesitas más entrenamiento', body: 'Varios sistemas de la nave no respondieron como se esperaba. Repasa las fórmulas de MRUA con las pistas y vuelve a lanzar la misión.' },
+]
+const resultFeedback = computed(() => {
+  const pass = scorePercentage.value >= 70
+  if (pass) return scorePercentage.value === 100 ? PASS_MESSAGES[0] : PASS_MESSAGES[1]
+  return scorePercentage.value >= 40 ? FAIL_MESSAGES[0] : FAIL_MESSAGES[1]
+})
+
 /* ================================================================ */
 /* Reinicio completo                                                 */
 /* ================================================================ */
@@ -668,7 +682,7 @@ onUnmounted(() => {
                 <div class="led" :class="!numericConfirmed ? 'idle' : (checkCorrect(4) ? 'green' : 'amber')"></div>
               </div>
               <div class="keypad">
-                <button v-for="k in ['1','2','3','4','5','6','7','8','9','-','0','.']" :key="k" @click="pressDigit(k)">{{ k }}</button>
+                <button v-for="k in ['7','8','9','4','5','6','1','2','3','0','.','+','-']" :key="k" @click="pressDigit(k)">{{ k }}</button>
                 <button class="key-clear" @click="clearNumeric">C</button>
                 <button class="key-back" @click="backspaceNumeric">⌫</button>
               </div>
@@ -774,6 +788,11 @@ let aceleracion = (vf - <input class="code-input" :class="{ correct: checkCorrec
             <div class="score-badge" :class="{ ok: scorePercentage >= 70, bad: scorePercentage < 70 }">
               <span>{{ scorePercentage }}%</span>
               <small>{{ scorePercentage >= 70 ? 'Aprobado' : 'No Aprobado' }}</small>
+            </div>
+
+            <div class="result-banner" :class="scorePercentage >= 70 ? 'ok' : 'bad'">
+              <h4>{{ resultFeedback.title }}</h4>
+              <p>{{ resultFeedback.body }}</p>
             </div>
           </div>
 
@@ -987,6 +1006,18 @@ let aceleracion = (vf - <input class="code-input" :class="{ correct: checkCorrec
 .score-badge { display: inline-flex; flex-direction: column; padding: 0.75rem 1.5rem; border-radius: 12px; margin: 1rem 0; font-weight: bold; font-size: 1.5rem; }
 .score-badge.ok { background: rgba(57, 169, 0, 0.2); color: #39a900; border: 1px solid #39a900; }
 .score-badge.bad { background: rgba(255, 82, 82, 0.2); color: #ff5252; border: 1px solid #ff5252; }
+
+.result-banner {
+  max-width: 480px; margin: 0.5rem auto 1.25rem; padding: 1rem 1.25rem; border-radius: 10px;
+  animation: bannerIn .4s ease;
+}
+.result-banner h4 { margin: 0 0 0.35rem; font-size: 1.05rem; }
+.result-banner p { margin: 0; font-size: 0.85rem; line-height: 1.5; color: #d7e0f5; }
+.result-banner.ok { background: rgba(57, 169, 0, 0.12); border: 1px solid rgba(57, 169, 0, 0.4); box-shadow: 0 0 18px rgba(57, 169, 0, 0.25); }
+.result-banner.ok h4 { color: #39a900; }
+.result-banner.bad { background: rgba(255, 82, 82, 0.1); border: 1px solid rgba(255, 82, 82, 0.35); box-shadow: 0 0 18px rgba(255, 82, 82, 0.2); }
+.result-banner.bad h4 { color: #ff5252; }
+@keyframes bannerIn { 0% { opacity: 0; transform: translateY(-8px) scale(.97); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .review-section { text-align: left; margin: 1.5rem 0; display: flex; flex-direction: column; gap: 0.75rem; }
 .review-item { padding: 0.85rem; border-radius: 8px; background: rgba(0,0,0,0.2); }
 .review-item.item-ok { border-left: 4px solid #39a900; }
