@@ -1,4 +1,200 @@
- <script setup>
+<template>
+  <div class="lander-container">
+    <!-- Encabezado -->
+    <header class="lander__header">
+      <div class="lander__title">
+        <span class="badge-pill">Simulador Educativo · Física Espacial</span>
+        <h2>Desafío de Descenso Lunar Suave</h2>
+        <p class="subtitle">Calcula las variables físicas y controla los retrocohetes para lograr un aterrizaje seguro en la superficie.</p>
+      </div>
+
+      <div class="lander__setup">
+        <div class="setup-controls">
+          <label class="field">
+            <span>1. Dificultad</span>
+            <select v-model="difficulty" @change="prepareMission" :disabled="phase === 'flight'">
+              <option v-for="(d, key) in DIFFICULTIES" :key="key" :value="key">{{ d.label }}</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>2. Modo</span>
+            <div class="mode-toggle" role="tablist">
+              <button
+                role="tab"
+                :aria-selected="mode === 'manual'"
+                :class="{ active: mode === 'manual' }"
+                :disabled="phase === 'flight'"
+                @click="setMode('manual')"
+              >🎮 Manual</button>
+              <button
+                role="tab"
+                :aria-selected="mode === 'auto'"
+                :class="{ active: mode === 'auto' }"
+                :disabled="phase === 'flight'"
+                @click="setMode('auto')"
+              >📐 Automático</button>
+            </div>
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <!-- Cuerpo de la actividad -->
+    <div class="lander__body">
+      <section class="viewport" aria-label="Visor visual de descenso">
+        <svg viewBox="0 0 320 400" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <radialGradient id="flameGrad" cx="50%" cy="0%" r="80%">
+              <stop offset="0%" stop-color="#FFD166" stop-opacity="0.95" />
+              <stop offset="100%" stop-color="#EF476F" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+
+          <g class="stars">
+            <circle v-for="n in 28" :key="n"
+              :cx="(n * 37) % 320" :cy="(n * 53) % 300" r="1.1" fill="#8fa3c7" opacity="0.7" />
+          </g>
+
+          <line x1="18" :y1="VIEW_TOP" x2="18" :y2="VIEW_GROUND" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+          <text x="24" :y="VIEW_TOP + 8" class="scale-label">{{ scenario.h0.toFixed(0) }} m</text>
+          <text x="24" :y="VIEW_GROUND" class="scale-label">0 m (Superficie)</text>
+
+          <rect x="0" :y="VIEW_GROUND" width="320" height="40" fill="#0f1422" />
+          <line x1="0" y1="360" x2="320" y2="360" stroke="#00ffcc" stroke-width="1.5" opacity="0.4" />
+          <rect x="115" :y="VIEW_GROUND - 2" width="90" height="6" rx="2" class="platform"
+            :class="phase === 'landed' ? 'platform--ok' : phase === 'crashed' ? 'platform--danger' : ''" />
+          <text x="160" :y="VIEW_GROUND + 24" text-anchor="middle" class="scale-label">
+            Zona de Aterrizaje · Meta: v ≤ {{ scenario.safeV }} m/s
+          </text>
+
+          <g :transform="`translate(160, ${moduleY})`">
+            <ellipse v-if="sim.throttle > 0 && phase === 'flight'"
+              cx="0" :cy="14 + flameHeight / 2" rx="7" :ry="flameHeight / 2"
+              fill="url(#flameGrad)" />
+            <g class="module" :class="{ crashed: phase === 'crashed' }">
+              <rect x="-11" y="-16" width="22" height="26" rx="4" fill="#c7d3ef" />
+              <rect x="-14" y="6" width="6" height="10" fill="#8fa3c7" />
+              <rect x="8" y="6" width="6" height="10" fill="#8fa3c7" />
+              <circle cx="0" cy="-6" r="5" fill="#0b0e14" stroke="#00ffcc" stroke-width="1.5" />
+            </g>
+          </g>
+        </svg>
+      </section>
+
+      <section class="panel">
+        <div v-if="phase === 'setup'" class="calc-card">
+          <h3>📌 Instrucciones de la Misión</h3>
+          <p class="hint">Tu objetivo es lograr un alunizaje suave controlando la velocidad de descenso del módulo. Analiza los parámetros iniciales y decide cómo abordar la maniobra de frenado antes de tocar la superficie.</p>
+          <div class="mission-preview">
+            <p><strong>Altitud de partida (h₀):</strong> {{ scenario.h0 }} metros</p>
+            <p><strong>Velocidad inicial (v₀):</strong> {{ scenario.v0 }} m/s</p>
+            <p><strong>Combustible:</strong> {{ scenario.fuelCap }}%</p>
+            <p><strong>Velocidad segura:</strong> ≤ {{ scenario.safeV }} m/s</p>
+          </div>
+          <button class="btn-eng run" @click="launchMission">
+            <span>🚀 {{ mode === 'auto' ? 'Ir al Análisis Teórico' : '¡Comenzar Descenso Manual!' }}</span>
+          </button>
+        </div>
+
+        <div v-else-if="mode === 'auto' && phase === 'calc'" class="calc-card">
+          <h3>📐 Paso 3.1 · Resolución de Fórmulas (MRUA)</h3>
+          <p class="hint">Calcula la física del descenso antes de activar el piloto automático.</p>
+          <ol class="formula-steps">
+            <li>Elige la altura de ignición (h<sub>ign</sub>).</li>
+            <li>v² = v₀² + 2·g·(h₀ − h<sub>ign</sub>)</li>
+            <li>a = v<sub>ign</sub>² / (2·h<sub>ign</sub>)</li>
+          </ol>
+
+          <label class="field">
+            <span>Altitud de ignición h<sub>ign</sub> (m)</span>
+            <input type="number" min="1" :max="scenario.h0" v-model.number="ignitionAltitude" placeholder="Ej: 150" />
+          </label>
+
+          <p v-if="velocityAtIgnition != null" class="derived">
+            💡 Velocidad en ignición ≈ {{ velocityAtIgnition.toFixed(2) }} m/s
+          </p>
+
+          <label class="field">
+            <span>Desaceleración (m/s²)</span>
+            <input type="number" step="0.01" min="0" v-model.number="studentAnswer" placeholder="Ej: 2.0" />
+          </label>
+
+          <p v-if="answerFeedback === 'correcto'" class="feedback ok">
+            ✔ ¡Excelente! El cálculo es correcto.
+          </p>
+          <p v-else-if="answerFeedback === 'incorrecto'" class="feedback bad">
+            ⚠ Revisa la fórmula de desaceleración.
+          </p>
+
+          <button class="btn-eng run" :disabled="requiredDeceleration == null || studentAnswer == null" @click="beginAutoFlight">
+            <span>🚀 Activar Autopiloto</span>
+          </button>
+        </div>
+
+        <div v-else class="telemetry-card">
+          <h3>📊 Tablero de Telemetría</h3>
+          <dl class="telemetry-grid">
+            <div class="t-box"><dt>Tiempo</dt><dd>{{ sim.t.toFixed(2) }}s</dd></div>
+            <div class="t-box"><dt>Altitud</dt><dd>{{ sim.h.toFixed(1) }}m</dd></div>
+            <div class="t-box" :class="'v-' + speedStatus">
+              <dt>Velocidad</dt><dd>{{ sim.v.toFixed(2) }}</dd>
+            </div>
+            <div class="t-box"><dt>Acel. Neta</dt><dd>{{ sim.a.toFixed(2) }}</dd></div>
+            <div class="t-box"><dt>Combustible</dt><dd>{{ sim.fuel.toFixed(0) }}%</dd></div>
+            <div class="t-box"><dt>Potencia</dt><dd>{{ sim.throttle.toFixed(0) }}%</dd></div>
+          </dl>
+
+          <div class="chart-wrapper">
+            <svg class="chart" viewBox="0 0 300 80" preserveAspectRatio="none">
+              <line x1="0" y1="70" x2="300" y2="70" stroke="rgba(255,255,255,0.15)" />
+              <polyline :points="chartPoints" fill="none" stroke="#00ffcc" stroke-width="2" />
+            </svg>
+            <span class="chart-caption">Velocidad vs. Tiempo</span>
+          </div>
+
+          <div v-if="mode === 'manual' && phase === 'flight'" class="throttle-control">
+            <label class="field">
+              <span>Potencia: <strong>{{ sim.throttle.toFixed(0) }}%</strong></span>
+              <input type="range" min="0" max="100" step="1"
+                :value="sim.throttle"
+                @input="setThrottle(Number($event.target.value))" />
+            </label>
+            <span class="hint-key">🕹️ Usa las flechas <strong>↑</strong> y <strong>↓</strong> del teclado.</span>
+          </div>
+
+          <div v-if="phase === 'landed' || phase === 'crashed'" class="result" :class="phase">
+            <h4>{{ phase === 'landed' ? '🎉 ¡Alunizaje Exitoso!' : '💥 Colisión Detectada' }}</h4>
+            <p class="result-quote"><em>"{{ phase === 'landed' ? currentSuccessQuote : currentCrashQuote }}"</em></p>
+            <p>Velocidad final: <strong>{{ Math.abs(sim.v).toFixed(2) }} m/s</strong></p>
+            <button class="btn-eng run" @click="prepareMission"><span>🔄 Reintentar Misión</span></button>
+          </div>
+
+          <button v-else-if="phase !== 'flight'" class="btn-eng run" @click="prepareMission">
+            <span>🚀 Reiniciar Misión</span>
+          </button>
+        </div>
+
+        <div class="log-card" aria-live="polite">
+          <h3>📝 Bitácora de Eventos</h3>
+          <ul>
+            <li v-for="(entry, i) in log" :key="i">{{ entry }}</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+
+    <!-- Navegación estilo contenidos (Barra inferior alineada a la derecha) -->
+    <div class="navigation-footer">
+      <router-link to="/nivel-4" class="btn-nav primary">
+        <span>Siguiente: Evaluación</span>
+        <span class="arrow">→</span>
+      </router-link>
+    </div>
+  </div>
+</template>
+
+<script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
 const emit = defineEmits(['go-to-evaluation'])
@@ -14,6 +210,23 @@ const DIFFICULTIES = {
   normal:  { label: 'Normal',  h0: [400, 480], v0: [28, 35], thrustMax: 3.0, fuel: 110, safeV: 3.0, desc: 'Desafío equilibrado. Requiere cálculo moderado y buen pulso.' },
   dificil: { label: 'Difícil', h0: [500, 600], v0: [38, 48], thrustMax: 2.5, fuel: 90,  safeV: 2.5, desc: 'Nivel experto. Margen de error ajustado.' },
 }
+
+const SUCCESS_QUOTES = [
+  "¡Un pequeño paso para la física, un gran aterrizaje para ti!",
+  "¡Impecable! La gravedad no pudo con tus cálculos.",
+  "¡Aterrizaje suave logrado con éxito absoluto!",
+  "¡Excelente manejo de los retrocohetes comandante!"
+]
+
+const CRASH_QUOTES = [
+  "¡Houston, tenemos un problema... muy grave en la superficie!",
+  "¡Demasiado rápido! La física cobra su factura.",
+  "¡Impacto desastroso! Faltó aplicar frenado a tiempo.",
+  "¡Eso dolió! El módulo ha quedado hecho añicos."
+]
+
+const currentSuccessQuote = ref('')
+const currentCrashQuote = ref('')
 
 const FUEL_BURN_RATE = 12
 
@@ -150,9 +363,11 @@ function finishFlight() {
   const impact = Math.abs(sim.v)
   if (impact <= scenario.safeV) {
     phase.value = 'landed'
+    currentSuccessQuote.value = SUCCESS_QUOTES[Math.floor(Math.random() * SUCCESS_QUOTES.length)]
     pushLog(`✅ ¡Aterrizaje perfecto! v = ${impact.toFixed(2)} m/s`)
   } else {
     phase.value = 'crashed'
+    currentCrashQuote.value = CRASH_QUOTES[Math.floor(Math.random() * CRASH_QUOTES.length)]
     pushLog(`💥 Impacto muy fuerte. v = ${impact.toFixed(2)} m/s`)
   }
 }
@@ -223,210 +438,6 @@ const chartPoints = computed(() => {
     .join(' ')
 })
 </script>
-
-<template>
-  <div class="lander-container">
-    <!-- Encabezado -->
-    <header class="lander__header">
-      <div class="lander__title">
-        <span class="badge-pill">Simulador Educativo · Física Espacial</span>
-        <h2>Desafío de Descenso Lunar Suave</h2>
-        <p class="subtitle">Caída optimizada para estudiantes: más pausada y fácil de controlar.</p>
-      </div>
-
-      <div class="lander__setup">
-        <div class="setup-controls">
-          <label class="field">
-            <span>1. Dificultad</span>
-            <select v-model="difficulty" @change="prepareMission" :disabled="phase === 'flight'">
-              <option v-for="(d, key) in DIFFICULTIES" :key="key" :value="key">{{ d.label }}</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span>2. Modo</span>
-            <div class="mode-toggle" role="tablist">
-              <button
-                role="tab"
-                :aria-selected="mode === 'manual'"
-                :class="{ active: mode === 'manual' }"
-                :disabled="phase === 'flight'"
-                @click="setMode('manual')"
-              >🎮 Manual</button>
-              <button
-                role="tab"
-                :aria-selected="mode === 'auto'"
-                :class="{ active: mode === 'auto' }"
-                :disabled="phase === 'flight'"
-                @click="setMode('auto')"
-              >📐 Automático</button>
-            </div>
-          </label>
-        </div>
-      </div>
-    </header>
-
-    <!-- Cuerpo de la actividad -->
-    <div class="lander__body">
-      <section class="viewport" aria-label="Visor visual de descenso">
-        <svg viewBox="0 0 320 400" preserveAspectRatio="xMidYMid meet">
-          <defs>
-            <radialGradient id="flameGrad" cx="50%" cy="0%" r="80%">
-              <stop offset="0%" stop-color="#FFD166" stop-opacity="0.95" />
-              <stop offset="100%" stop-color="#EF476F" stop-opacity="0" />
-            </radialGradient>
-          </defs>
-
-          <g class="stars">
-            <circle v-for="n in 28" :key="n"
-              :cx="(n * 37) % 320" :cy="(n * 53) % 300" r="1.1" fill="#8fa3c7" opacity="0.7" />
-          </g>
-
-          <line x1="18" :y1="VIEW_TOP" x2="18" :y2="VIEW_GROUND" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
-          <text x="24" :y="VIEW_TOP + 8" class="scale-label">{{ scenario.h0.toFixed(0) }} m</text>
-          <text x="24" :y="VIEW_GROUND" class="scale-label">0 m (Superficie)</text>
-
-          <rect x="0" :y="VIEW_GROUND" width="320" height="40" fill="#0f1422" />
-          <line x1="0" y1="360" x2="320" y2="360" stroke="#00ffcc" stroke-width="1.5" opacity="0.4" />
-          <rect x="115" :y="VIEW_GROUND - 2" width="90" height="6" rx="2" class="platform"
-            :class="phase === 'landed' ? 'platform--ok' : phase === 'crashed' ? 'platform--danger' : ''" />
-          <text x="160" :y="VIEW_GROUND + 24" text-anchor="middle" class="scale-label">
-            Zona de Aterrizaje · Meta: v ≤ {{ scenario.safeV }} m/s
-          </text>
-
-          <g :transform="`translate(160, ${moduleY})`">
-            <ellipse v-if="sim.throttle > 0 && phase === 'flight'"
-              cx="0" :cy="14 + flameHeight / 2" rx="7" :ry="flameHeight / 2"
-              fill="url(#flameGrad)" />
-            <g class="module" :class="{ crashed: phase === 'crashed' }">
-              <rect x="-11" y="-16" width="22" height="26" rx="4" fill="#c7d3ef" />
-              <rect x="-14" y="6" width="6" height="10" fill="#8fa3c7" />
-              <rect x="8" y="6" width="6" height="10" fill="#8fa3c7" />
-              <circle cx="0" cy="-6" r="5" fill="#0b0e14" stroke="#00ffcc" stroke-width="1.5" />
-            </g>
-          </g>
-        </svg>
-      </section>
-
-      <section class="panel">
-        <div v-if="phase === 'setup'" class="calc-card">
-          <h3>📌 Paso 3 · Preparación de la Misión</h3>
-          <p class="hint">{{ scenario.desc }}</p>
-          <div class="mission-preview">
-            <p><strong>Altitud de partida (h₀):</strong> {{ scenario.h0 }} metros</p>
-            <p><strong>Velocidad inicial (v₀):</strong> {{ scenario.v0 }} m/s</p>
-            <p><strong>Combustible:</strong> {{ scenario.fuelCap }}%</p>
-            <p><strong>Velocidad segura:</strong> ≤ {{ scenario.safeV }} m/s</p>
-          </div>
-          <button class="btn-eng run" @click="launchMission">
-            <span>🚀 {{ mode === 'auto' ? 'Ir al Análisis Teórico' : '¡Comenzar Descenso Manual!' }}</span>
-          </button>
-        </div>
-
-        <div v-else-if="mode === 'auto' && phase === 'calc'" class="calc-card">
-          <h3>📐 Paso 3.1 · Resolución de Fórmulas (MRUA)</h3>
-          <p class="hint">Calcula la física del descenso antes de activar el piloto automático.</p>
-          <ol class="formula-steps">
-            <li>Elige la altura de ignición (h<sub>ign</sub>).</li>
-            <li>v² = v₀² + 2·g·(h₀ − h<sub>ign</sub>)</li>
-            <li>a = v<sub>ign</sub>² / (2·h<sub>ign</sub>)</li>
-          </ol>
-
-          <label class="field">
-            <span>Altitud de ignición h<sub>ign</sub> (m)</span>
-            <input type="number" min="1" :max="scenario.h0" v-model.number="ignitionAltitude" placeholder="Ej: 150" />
-          </label>
-
-          <p v-if="velocityAtIgnition != null" class="derived">
-            💡 Velocidad en ignición ≈ {{ velocityAtIgnition.toFixed(2) }} m/s
-          </p>
-
-          <label class="field">
-            <span>Desaceleración (m/s²)</span>
-            <input type="number" step="0.01" min="0" v-model.number="studentAnswer" placeholder="Ej: 2.0" />
-          </label>
-
-          <p v-if="answerFeedback === 'correcto'" class="feedback ok">
-            ✔ ¡Excelente! El cálculo es correcto.
-          </p>
-          <p v-else-if="answerFeedback === 'incorrecto'" class="feedback bad">
-            ⚠ Revisa la fórmula de desaceleración.
-          </p>
-
-          <button class="btn-eng run" :disabled="requiredDeceleration == null || studentAnswer == null" @click="beginAutoFlight">
-            <span>🚀 Activar Autopiloto</span>
-          </button>
-        </div>
-
-        <div v-else class="telemetry-card">
-          <h3>📊 Tablero de Telemetría</h3>
-          <dl class="telemetry-grid">
-            <div class="t-box"><dt>Tiempo</dt><dd>{{ sim.t.toFixed(2) }}s</dd></div>
-            <div class="t-box"><dt>Altitud</dt><dd>{{ sim.h.toFixed(1) }}m</dd></div>
-            <div class="t-box" :class="'v-' + speedStatus">
-              <dt>Velocidad</dt><dd>{{ sim.v.toFixed(2) }}</dd>
-            </div>
-            <div class="t-box"><dt>Acel. Neta</dt><dd>{{ sim.a.toFixed(2) }}</dd></div>
-            <div class="t-box"><dt>Combustible</dt><dd>{{ sim.fuel.toFixed(0) }}%</dd></div>
-            <div class="t-box"><dt>Potencia</dt><dd>{{ sim.throttle.toFixed(0) }}%</dd></div>
-          </dl>
-
-          <div class="chart-wrapper">
-            <svg class="chart" viewBox="0 0 300 80" preserveAspectRatio="none">
-              <line x1="0" y1="70" x2="300" y2="70" stroke="rgba(255,255,255,0.15)" />
-              <polyline :points="chartPoints" fill="none" stroke="#00ffcc" stroke-width="2" />
-            </svg>
-            <span class="chart-caption">Velocidad vs. Tiempo</span>
-          </div>
-
-          <div v-if="mode === 'manual' && phase === 'flight'" class="throttle-control">
-            <label class="field">
-              <span>Potencia: <strong>{{ sim.throttle.toFixed(0) }}%</strong></span>
-              <input type="range" min="0" max="100" step="1"
-                :value="sim.throttle"
-                @input="setThrottle(Number($event.target.value))" />
-            </label>
-            <span class="hint-key">🕹️ Usa las flechas <strong>↑</strong> y <strong>↓</strong> del teclado.</span>
-          </div>
-
-          <div v-if="phase === 'landed' || phase === 'crashed'" class="result" :class="phase">
-            <h4>{{ phase === 'landed' ? '🎉 ¡Alunizaje Exitoso!' : '💥 Colisión Detectada' }}</h4>
-            <p>Velocidad final: <strong>{{ Math.abs(sim.v).toFixed(2) }} m/s</strong></p>
-            <button class="btn-eng run" @click="prepareMission"><span>🔄 Reintentar Misión</span></button>
-          </div>
-
-          <button v-else-if="phase !== 'flight'" class="btn-eng run" @click="prepareMission">
-            <span>🚀 Reiniciar Misión</span>
-          </button>
-        </div>
-
-        <div class="log-card" aria-live="polite">
-          <h3>📝 Bitácora de Eventos</h3>
-          <ul>
-            <li v-for="(entry, i) in log" :key="i">{{ entry }}</li>
-          </ul>
-        </div>
-      </section>
-    </div>
-
-    <!-- Navegación estilo contenidos (Barra inferior alineada a la derecha) -->
-    <div class="navigation-footer">
-      <!-- Si usas Vue Router -->
-      <router-link to="/nivel-4" class="btn-nav primary">
-        <span>Siguiente: Evaluación</span>
-        <span class="arrow">→</span>
-      </router-link>
-
-      <!-- Si usas eventos ($emit) sin vue-router, descomenta este botón y comenta el router-link: -->
-      <!-- 
-      <button class="btn-nav primary" @click="goToEvaluation">
-        <span>Siguiente: Evaluación</span>
-        <span class="arrow">→</span>
-      </button> 
-      -->
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .lander-container {
@@ -696,6 +707,15 @@ const chartPoints = computed(() => {
 .result.landed { background: rgba(0, 255, 204, 0.1); border: 1px solid rgba(0, 255, 204, 0.3); }
 .result.crashed { background: rgba(255, 90, 90, 0.1); border: 1px solid rgba(255, 90, 90, 0.3); }
 .result h4 { margin: 0 0 0.25rem; color: #fff; }
+.result-quote {
+  font-size: 0.85rem;
+  color: #00ffcc;
+  margin: 0.3rem 0 0.5rem;
+  font-style: italic;
+}
+.result.crashed .result-quote {
+  color: #ff6b6b;
+}
 .result p { margin: 0 0 0.5rem; font-size: 0.82rem; color: #b0c4de; }
 
 .btn-eng {
@@ -738,9 +758,6 @@ const chartPoints = computed(() => {
   font-family: monospace;
 }
 
-/* ===================================================
-   Navegación Footer (Idéntica a la vista de Contenidos)
-   =================================================== */
 .navigation-footer {
   display: flex;
   justify-content: flex-end;
