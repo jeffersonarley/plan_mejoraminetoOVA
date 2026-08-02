@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 
 /* ================================================================ */
 /* Utilidades                                                       */
@@ -110,6 +110,7 @@ const exercises = [
         { name: 'Beta', thrust: 3.7, desc: 'Consumo medio — diseñado para descensos en gravedad media.' },
         { name: 'Gamma', thrust: 6.2, desc: 'Alto consumo — reservado para despegues de emergencia.' },
       ],
+      maxScale: 8,
     },
     correct: 'Beta',
     explanation: 'El propulsor Beta entrega exactamente 3.7 m/s² de empuje, el valor que exige la misión.',
@@ -184,12 +185,14 @@ const gravitySelected = ref(null)
 const assemblyPool = ref([])
 const assemblySlots = ref([])
 const assemblySelectedToken = ref(null)
+const pulsingSlot = ref(null) // dispara el pulso de "encaje magnético" en el socket recién llenado
 
 function initAssembly() {
   const tokens = exercises[1].data.tokens.map((label, id) => ({ id, label }))
   assemblyPool.value = shuffle(tokens)
   assemblySlots.value = Array(tokens.length).fill(null)
   assemblySelectedToken.value = null
+  pulsingSlot.value = null
 }
 
 function placeTokenInSlot(id, slotIndex) {
@@ -198,6 +201,8 @@ function placeTokenInSlot(id, slotIndex) {
   if (!token) return
   assemblySlots.value[slotIndex] = token
   assemblyPool.value = assemblyPool.value.filter(t => t.id !== id)
+  pulsingSlot.value = slotIndex
+  setTimeout(() => { if (pulsingSlot.value === slotIndex) pulsingSlot.value = null }, 550)
 }
 function returnTokenFromSlot(slotIndex) {
   const token = assemblySlots.value[slotIndex]
@@ -224,6 +229,8 @@ function onDropSlot(targetIndex, e) {
     const token = assemblySlots.value[data.slotIndex]
     assemblySlots.value[data.slotIndex] = null
     assemblySlots.value[targetIndex] = token
+    pulsingSlot.value = targetIndex
+    setTimeout(() => { if (pulsingSlot.value === targetIndex) pulsingSlot.value = null }, 550)
   }
 }
 function onDropPool(e) {
@@ -274,17 +281,29 @@ const vectorStates = ref([null, null, null, null])
 /* ================================================================ */
 const numericValue = ref('')
 const numericConfirmed = ref(false)
+const displayFlicker = ref(false)
+
+function flickerDisplay() {
+  displayFlicker.value = false
+  requestAnimationFrame(() => {
+    displayFlicker.value = true
+    setTimeout(() => { displayFlicker.value = false }, 130)
+  })
+}
 function pressDigit(k) {
   numericConfirmed.value = false
   numericValue.value += k
+  flickerDisplay()
 }
 function clearNumeric() {
   numericConfirmed.value = false
   numericValue.value = ''
+  flickerDisplay()
 }
 function backspaceNumeric() {
   numericConfirmed.value = false
   numericValue.value = numericValue.value.slice(0, -1)
+  flickerDisplay()
 }
 function confirmNumeric() {
   if (numericValue.value === '') return
@@ -297,6 +316,7 @@ function confirmNumeric() {
 const stopwatchElapsed = ref(0)
 const stopwatchRunning = ref(false)
 const stopwatchStopped = ref(false)
+const rippleActive = ref(false)
 let stopwatchInterval = null
 let stopwatchStart = null
 
@@ -315,6 +335,8 @@ function stopStopwatch() {
   stopwatchInterval = null
   stopwatchRunning.value = false
   stopwatchStopped.value = true
+  rippleActive.value = true
+  setTimeout(() => { rippleActive.value = false }, 650)
 }
 function resetStopwatchState() {
   if (stopwatchInterval) clearInterval(stopwatchInterval)
@@ -322,12 +344,14 @@ function resetStopwatchState() {
   stopwatchElapsed.value = 0
   stopwatchRunning.value = false
   stopwatchStopped.value = false
+  rippleActive.value = false
 }
 
 /* ================================================================ */
 /* Ejercicio 6 · Selección de Propulsores                            */
 /* ================================================================ */
 const thrusterSelected = ref(null)
+const anyThrusterSelected = computed(() => thrusterSelected.value !== null)
 
 /* ================================================================ */
 /* Ejercicio 7 · Rellenar Código en Consola                          */
@@ -341,6 +365,13 @@ const knobValue = ref(0)
 const knobConfirmed = ref(false)
 const knobDragging = ref(false)
 const knobBase = ref(null)
+const knobPulse = ref(false)
+const knobTicks = Array.from({ length: 11 }, (_, n) => -135 + n * 27)
+
+watch(knobValue, () => {
+  knobPulse.value = true
+  setTimeout(() => { knobPulse.value = false }, 150)
+})
 
 function angleFromValue(v) {
   const max = exercises[8].data.max
@@ -395,17 +426,25 @@ function fireProbe() {
   if (!launchT.value || launchAnimating.value) return
   launchAnimating.value = true
   launchProgress.value = 0
+  launchResult.value = null
+
+  const { targetVf, toleranceVf } = exercises[9].data
+  const predicted = predictedVf.value
+  const success = Math.abs(predicted - targetVf) <= toleranceVf
+  const ratio = Math.min(predicted / targetVf, 1.15)
+  const finalProgress = success ? 88 : Math.min(ratio, 0.95) * 88
+
   const duration = 2200
   const start = performance.now()
   function frame(ts) {
     const p = Math.min((ts - start) / duration, 1)
-    launchProgress.value = p * 88
+    const eased = p * p // aceleración progresiva: arranca lento y acelera, como el empuje real
+    launchProgress.value = eased * finalProgress
     if (p < 1) {
       requestAnimationFrame(frame)
     } else {
       launchAnimating.value = false
-      const { targetVf, toleranceVf } = exercises[9].data
-      launchResult.value = Math.abs(predictedVf.value - targetVf) <= toleranceVf ? 'success' : 'fail'
+      launchResult.value = success ? 'success' : 'fail'
     }
   }
   requestAnimationFrame(frame)
@@ -543,7 +582,7 @@ onUnmounted(() => {
               <div class="slot-row">
                 <div
                   v-for="(slot, i) in assemblySlots" :key="i"
-                  class="slot" :class="{ filled: !!slot }"
+                  class="slot" :class="{ filled: !!slot, pulse: pulsingSlot === i }"
                   :draggable="!!slot"
                   @dragstart="onSlotDragStart(i, $event)"
                   @dragover.prevent
@@ -566,14 +605,43 @@ onUnmounted(() => {
             <!-- 2 · Decodificador de Telemetría -->
             <div v-else-if="currentEx.type === 'graph-click'" class="graph-wrap">
               <svg class="telemetry-chart" :viewBox="`0 0 ${CHART_W} ${CHART_H}`" preserveAspectRatio="none">
+                <defs>
+                  <pattern id="radarGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <path d="M20 0H0V20" fill="none" stroke="rgba(0,183,255,0.08)" stroke-width="1" />
+                  </pattern>
+                  <filter id="traceGlow" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur stdDeviation="2.2" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                  <radialGradient id="zoneGlowBlue" cx="50%" cy="50%" r="70%">
+                    <stop offset="0%" stop-color="#00b7ff" stop-opacity="0.4" />
+                    <stop offset="100%" stop-color="#00b7ff" stop-opacity="0" />
+                  </radialGradient>
+                  <radialGradient id="zoneGlowGreen" cx="50%" cy="50%" r="70%">
+                    <stop offset="0%" stop-color="#39a900" stop-opacity="0.5" />
+                    <stop offset="100%" stop-color="#39a900" stop-opacity="0" />
+                  </radialGradient>
+                </defs>
+
+                <rect x="0" y="0" :width="CHART_W" :height="CHART_H - 20" fill="url(#radarGrid)" />
                 <line x1="0" :y1="CHART_H - 20" :x2="CHART_W" :y2="CHART_H - 20" stroke="rgba(255,255,255,0.15)" />
-                <polyline :points="chartPolyline" fill="none" stroke="#00b7ff" stroke-width="2.5" />
+                <polyline :points="chartPolyline" fill="none" stroke="#00b7ff" stroke-width="2.5" filter="url(#traceGlow)" />
+
                 <rect
                   v-for="(z, i) in chartZones" :key="i"
                   :x="z.x" y="0" :width="z.w" :height="CHART_H - 20"
                   class="graph-zone" :class="{ selected: graphSelected === i + 1 }"
+                  :fill="graphSelected === i + 1 ? 'url(#zoneGlowGreen)' : 'transparent'"
                   @click="graphSelected = i + 1"
                 />
+                <circle v-if="graphSelected" :cx="chartZones[graphSelected - 1].x + chartZones[graphSelected - 1].w / 2" cy="14" r="5" fill="#39a900" class="zone-marker">
+                  <animate attributeName="r" values="4;8;4" dur="1.2s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="1;0.35;1" dur="1.2s" repeatCount="indefinite" />
+                </circle>
+
                 <text
                   v-for="(z, i) in chartZones" :key="'label' + i"
                   :x="z.x + z.w / 2" :y="CHART_H - 4" text-anchor="middle" class="zone-label"
@@ -586,9 +654,9 @@ onUnmounted(() => {
               <div v-for="(sc, i) in currentEx.data.scenarios" :key="i" class="vector-scenario">
                 <p>{{ sc.text }}</p>
                 <div class="segmented">
-                  <button :class="{ active: vectorStates[i] === 'plus' }" @click="vectorStates[i] = 'plus'">Acelerado (+)</button>
-                  <button :class="{ active: vectorStates[i] === 'zero' }" @click="vectorStates[i] = 'zero'">Constante (0)</button>
-                  <button :class="{ active: vectorStates[i] === 'minus' }" @click="vectorStates[i] = 'minus'">Frenado (−)</button>
+                  <button class="seg-plus" :class="{ active: vectorStates[i] === 'plus' }" @click="vectorStates[i] = 'plus'">Acelerado (+)</button>
+                  <button class="seg-zero" :class="{ active: vectorStates[i] === 'zero' }" @click="vectorStates[i] = 'zero'">Constante (0)</button>
+                  <button class="seg-minus" :class="{ active: vectorStates[i] === 'minus' }" @click="vectorStates[i] = 'minus'">Frenado (−)</button>
                 </div>
               </div>
             </div>
@@ -596,7 +664,7 @@ onUnmounted(() => {
             <!-- 4 · Calculadora de Ignición -->
             <div v-else-if="currentEx.type === 'numeric-console'" class="console">
               <div class="console-display-row">
-                <div class="console-display">{{ numericValue || '0' }}</div>
+                <div class="console-display" :class="{ flicker: displayFlicker }">{{ numericValue || '0' }}</div>
                 <div class="led" :class="!numericConfirmed ? 'idle' : (checkCorrect(4) ? 'green' : 'amber')"></div>
               </div>
               <div class="keypad">
@@ -609,7 +677,10 @@ onUnmounted(() => {
 
             <!-- 5 · Temporizador de Maniobra Orbital -->
             <div v-else-if="currentEx.type === 'stopwatch'" class="stopwatch">
-              <div class="stopwatch-display">{{ stopwatchElapsed.toFixed(2) }}s</div>
+              <div class="stopwatch-ring" :class="{ running: stopwatchRunning }">
+                <div class="stopwatch-display">{{ stopwatchElapsed.toFixed(2) }}s</div>
+                <div v-if="rippleActive" class="ripple"></div>
+              </div>
               <button v-if="!stopwatchRunning && !stopwatchStopped" class="btn-eng run" @click="startStopwatch">▶ INICIAR CRONÓMETRO</button>
               <button v-else-if="stopwatchRunning" class="btn-eng stop-btn" @click="stopStopwatch">⏹ DETENER MANIOBRA</button>
               <button v-else class="btn-sec" @click="resetStopwatchState">↺ Reintentar cronómetro</button>
@@ -624,6 +695,9 @@ onUnmounted(() => {
               >
                 <h4>Propulsor {{ th.name }}</h4>
                 <p class="thrust-val">{{ th.thrust }} m/s²</p>
+                <div class="power-bar">
+                  <div class="power-fill" :style="{ width: (anyThrusterSelected ? (th.thrust / currentEx.data.maxScale) * 100 : 0) + '%' }"></div>
+                </div>
                 <p class="thrust-desc">{{ th.desc }}</p>
               </button>
             </div>
@@ -633,21 +707,21 @@ onUnmounted(() => {
               <pre><code>let vf = 40;
 let v0 = 10;
 let t = 6;
-let aceleracion = (vf - <input class="code-input" v-model="codeBlank" placeholder="?" />) / t;</code></pre>
+let aceleracion = (vf - <input class="code-input" :class="{ correct: checkCorrect(7) }" v-model="codeBlank" placeholder="?" />) / t;</code></pre>
             </div>
 
             <!-- 8 · Perilla de Empuje de Motor -->
             <div v-else-if="currentEx.type === 'knob'" class="knob-wrap">
-              <div
-                class="knob-base" ref="knobBase"
-                @pointerdown="onKnobPointerDown"
-              >
+              <div class="knob-base" ref="knobBase" @pointerdown="onKnobPointerDown">
+                <div class="knob-ticks">
+                  <span v-for="(deg, n) in knobTicks" :key="n" class="tick" :style="{ transform: `translate(-50%, -50%) rotate(${deg}deg) translateY(-56px)` }"></span>
+                </div>
                 <div class="knob-track"></div>
                 <div class="knob-handle" :style="{ transform: `rotate(${angleFromValue(knobValue)}deg)` }">
                   <span class="knob-dot"></span>
                 </div>
               </div>
-              <p class="knob-readout">{{ knobValue.toFixed(2) }} m/s²</p>
+              <p class="knob-readout" :class="{ pulse: knobPulse }">{{ knobValue.toFixed(2) }} m/s²</p>
               <button class="btn-eng run" @click="confirmKnob">FIJAR VALOR</button>
             </div>
 
@@ -661,7 +735,7 @@ let aceleracion = (vf - <input class="code-input" v-model="codeBlank" placeholde
                 🚀 LANZAR SONDA
               </button>
               <div class="launch-track">
-                <div class="probe" :style="{ left: launchProgress + '%' }">🛰️</div>
+                <div class="probe" :class="{ 'trail-success': launchResult === 'success', 'bounce-fail': launchResult === 'fail' }" :style="{ left: launchProgress + '%' }">🛰️</div>
                 <div class="launch-target">🎯 Objetivo</div>
               </div>
               <p v-if="launchResult" class="launch-result" :class="launchResult">
@@ -763,88 +837,151 @@ let aceleracion = (vf - <input class="code-input" v-model="codeBlank" placeholde
 .category-tag { font-size: 0.75rem; text-transform: uppercase; color: #00b7ff; font-weight: 700; }
 .question-text { font-size: 1.1rem; color: #fff; margin: 0.5rem 0 1.25rem 0; }
 
-/* Componentes Interactivos */
-/* Ejercicio 0: Gravedad */
+/* ---- Ejercicio 0: Gravedad ---- */
 .planet-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; }
-.planet-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.85rem; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; color: #fff; cursor: pointer; transition: all 0.2s; }
-.planet-card.selected { border-color: #00b7ff; background: rgba(0, 183, 255, 0.15); }
-.planet-icon { font-size: 1.5rem; }
+.planet-card {
+  position: relative; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+  padding: 0.85rem; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; color: #fff; cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.planet-card::before {
+  content: ''; position: absolute; inset: -10px; z-index: -1; border-radius: 16px; opacity: 0;
+  background: radial-gradient(circle, rgba(0,183,255,0.28), transparent 70%); transition: opacity 0.25s ease;
+}
+.planet-card:hover { transform: translateY(-6px); }
+.planet-card:hover::before { opacity: 1; }
+.planet-card.selected { border-color: #00e5ff; animation: selectedGlow 1.6s ease-in-out infinite; }
+@keyframes selectedGlow { 0%, 100% { box-shadow: 0 0 12px rgba(0,229,255,.45); } 50% { box-shadow: 0 0 24px rgba(0,229,255,.85); } }
+.planet-icon { font-size: 1.5rem; display: inline-block; animation: floatIcon 3.4s ease-in-out infinite; }
+.planet-card:nth-child(2) .planet-icon { animation-delay: .3s; }
+.planet-card:nth-child(3) .planet-icon { animation-delay: .6s; }
+.planet-card:nth-child(4) .planet-icon { animation-delay: .9s; }
+@keyframes floatIcon { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-5px) rotate(6deg); } }
 .planet-g { font-size: 0.75rem; color: #a0aec0; }
 
-/* Ejercicio 1: Drag and Drop */
+/* ---- Ejercicio 1: Drag and Drop (sockets) ---- */
 .assembly { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
 .slot-row, .pool-row { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; min-height: 48px; }
-.slot { width: 44px; height: 44px; border: 2px dashed rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; background: rgba(0,0,0,0.2); color: #00b7ff; }
+.slot {
+  width: 44px; height: 44px; border: 2px dashed rgba(0,183,255,0.35); border-radius: 8px; display: flex;
+  align-items: center; justify-content: center; font-weight: bold; background: rgba(0,0,0,0.25); color: #00b7ff;
+  box-shadow: inset 0 0 8px rgba(0,183,255,0.08); transition: border-color .2s ease, transform .2s ease;
+}
 .slot.filled { border-style: solid; border-color: #00b7ff; }
-.token { padding: 0.5rem 0.85rem; background: #1a2332; border: 1px solid rgba(0, 183, 255, 0.4); border-radius: 8px; color: #fff; cursor: pointer; font-weight: bold; }
-.token.selected { border-color: #ffc107; background: rgba(255, 193, 7, 0.2); }
+.slot.pulse { animation: socketPulse .55s ease, slotSettle .35s ease; }
+@keyframes socketPulse { 0% { box-shadow: 0 0 0 0 rgba(57,169,0,.7); } 100% { box-shadow: 0 0 0 16px rgba(57,169,0,0); } }
+@keyframes slotSettle { 0% { transform: scale(.82); } 60% { transform: scale(1.1); } 100% { transform: scale(1); } }
+.token {
+  padding: 0.5rem 0.85rem; background: #1a2332; border: 1px solid rgba(0, 183, 255, 0.4); border-radius: 8px;
+  color: #fff; cursor: grab; font-weight: bold; transition: transform .15s ease, box-shadow .15s ease;
+}
+.token:active { transform: scale(.92); }
+.token.selected { border-color: #ffc107; background: rgba(255, 193, 7, 0.2); box-shadow: 0 0 10px rgba(255,193,7,.4); }
 .hint-key { font-size: 0.75rem; color: #8a99ad; }
 
-/* Ejercicio 2: Telemetría SVG */
+/* ---- Ejercicio 2: Telemetría SVG ---- */
 .graph-wrap { width: 100%; display: flex; justify-content: center; }
-.telemetry-chart { width: 100%; max-width: 450px; height: 160px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
-.graph-zone { fill: rgba(255,255,255,0.02); cursor: pointer; stroke: rgba(255,255,255,0.05); }
-.graph-zone.selected { fill: rgba(0, 183, 255, 0.25); stroke: #00b7ff; }
+.telemetry-chart { width: 100%; max-width: 450px; height: 160px; background: rgba(0,0,0,0.35); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+.graph-zone { cursor: pointer; stroke: rgba(255,255,255,0.05); transition: fill .2s ease; }
+.graph-zone:hover { fill: url(#zoneGlowBlue) !important; }
 .zone-label { fill: #a0aec0; font-size: 10px; }
+.zone-marker { pointer-events: none; }
 
-/* Ejercicio 3: Vectores */
+/* ---- Ejercicio 3: Vectores ---- */
 .vector-list { display: flex; flex-direction: column; gap: 0.75rem; }
 .vector-scenario { background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 8px; display: flex; flex-direction: column; gap: 0.5rem; }
 .vector-scenario p { margin: 0; font-size: 0.85rem; }
 .segmented { display: flex; gap: 0.25rem; background: rgba(255,255,255,0.05); padding: 0.2rem; border-radius: 6px; }
-.segmented button { flex: 1; border: none; background: transparent; color: #a0aec0; padding: 0.35rem; font-size: 0.75rem; border-radius: 4px; cursor: pointer; }
-.segmented button.active { background: #00b7ff; color: #000; font-weight: bold; }
+.segmented button { flex: 1; border: none; background: transparent; color: #a0aec0; padding: 0.35rem; font-size: 0.75rem; border-radius: 4px; cursor: pointer; transition: background .25s ease, color .25s ease; }
+.segmented button.seg-plus.active { background: linear-gradient(135deg, #1b7e00, #39a900); color: #061018; font-weight: bold; }
+.segmented button.seg-zero.active { background: linear-gradient(135deg, #0077ff, #00b7ff); color: #061018; font-weight: bold; }
+.segmented button.seg-minus.active { background: linear-gradient(135deg, #b34700, #ffb703); color: #061018; font-weight: bold; }
 
-/* Ejercicio 4: Teclado */
+/* ---- Ejercicio 4: Teclado ---- */
 .console { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; width: 220px; margin: 0 auto; }
 .console-display-row { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
 .console-display { flex: 1; background: #000; color: #00ff66; border: 1px solid rgba(0,255,102,0.3); padding: 0.5rem; text-align: right; font-family: monospace; font-size: 1.2rem; border-radius: 4px; }
+.console-display.flicker { animation: flicker .13s steps(2); }
+@keyframes flicker { 0% { opacity: .35; } 100% { opacity: 1; } }
 .led { width: 12px; height: 12px; border-radius: 50%; background: #444; }
-.led.green { background: #00ff66; box-shadow: 0 0 8px #00ff66; }
-.led.amber { background: #ffc107; box-shadow: 0 0 8px #ffc107; }
+.led.green { background: #00ff66; animation: ledPulseGreen 1s ease-in-out infinite; }
+.led.amber { background: #ffc107; animation: ledPulseAmber 1s ease-in-out infinite; }
+@keyframes ledPulseGreen { 0%, 100% { box-shadow: 0 0 8px #00ff66; } 50% { box-shadow: 0 0 16px #00ff66, 0 0 4px #fff; } }
+@keyframes ledPulseAmber { 0%, 100% { box-shadow: 0 0 8px #ffc107; } 50% { box-shadow: 0 0 16px #ffc107, 0 0 4px #fff; } }
 .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; width: 100%; }
-.keypad button { padding: 0.5rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px; cursor: pointer; }
+.keypad button { padding: 0.5rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px; cursor: pointer; transition: background .15s ease; }
+.keypad button:hover { background: rgba(0,183,255,0.18); }
 
-/* Ejercicio 5: Cronómetro */
+/* ---- Ejercicio 5: Cronómetro ---- */
 .stopwatch { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
-.stopwatch-display { font-size: 2.5rem; font-family: monospace; color: #00b7ff; }
+.stopwatch-ring {
+  position: relative; width: 170px; height: 170px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; background: #0b0e14; border: 3px solid rgba(0,183,255,0.2);
+}
+.stopwatch-ring::before {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%; padding: 3px;
+  background: conic-gradient(from 0deg, #00b7ff, rgba(0,183,255,.1) 80%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity .3s ease;
+}
+.stopwatch-ring.running::before { opacity: 1; animation: spinRing 1.8s linear infinite; }
+@keyframes spinRing { to { transform: rotate(360deg); } }
+.stopwatch-display { position: relative; z-index: 1; font-size: 2.3rem; font-family: monospace; color: #00b7ff; }
+.ripple { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid #39a900; animation: rippleOut .65s ease-out; }
+@keyframes rippleOut { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.35); opacity: 0; } }
 
-/* Ejercicio 6: Propulsores */
+/* ---- Ejercicio 6: Propulsores ---- */
 .thruster-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
-.thruster-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.85rem; text-align: left; color: #fff; cursor: pointer; }
-.thruster-card.selected { border-color: #39a900; background: rgba(57, 169, 0, 0.15); }
+.thruster-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.85rem; text-align: left; color: #fff; cursor: pointer; transition: border-color .25s ease, box-shadow .25s ease; }
+.thruster-card.selected { border-color: #39a900; animation: cardEnergy 1.4s ease-in-out infinite; }
+@keyframes cardEnergy { 0%, 100% { box-shadow: 0 0 10px rgba(57,169,0,.28); } 50% { box-shadow: 0 0 20px rgba(57,169,0,.55); } }
 .thrust-val { font-size: 1.2rem; color: #39a900; font-weight: bold; margin: 0.25rem 0; }
+.power-bar { height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; margin: 0.35rem 0; }
+.power-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #0077ff, #39a900); transition: width .6s ease; }
 .thrust-desc { font-size: 0.75rem; color: #8a99ad; margin: 0; }
 
-/* Ejercicio 7: Código */
+/* ---- Ejercicio 7: Código ---- */
 .code-console { background: #0d1117; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem; font-family: monospace; }
-.code-input { background: rgba(255,255,255,0.1); border: 1px solid #00b7ff; color: #00ff66; width: 60px; text-align: center; font-family: monospace; border-radius: 4px; }
+.code-input { background: rgba(255,255,255,0.1); border: 1px solid #00b7ff; color: #00ff66; width: 60px; text-align: center; font-family: monospace; border-radius: 4px; transition: box-shadow .2s ease, border-color .2s ease; }
+.code-input:focus { outline: none; box-shadow: 0 0 10px rgba(0,183,255,.6); border-color: #00e5ff; }
+.code-input.correct { border-color: #39a900; box-shadow: 0 0 12px rgba(57,169,0,.7); animation: codeFlash .5s ease; }
+@keyframes codeFlash { 0% { box-shadow: 0 0 0 rgba(57,169,0,0); } 50% { box-shadow: 0 0 18px rgba(57,169,0,.9); } 100% { box-shadow: 0 0 12px rgba(57,169,0,.7); } }
 
-/* Ejercicio 8: Perilla Knob */
+/* ---- Ejercicio 8: Perilla Knob ---- */
 .knob-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
-.knob-base { width: 100px; height: 100px; border-radius: 50%; background: #1a2332; border: 3px solid #00b7ff; position: relative; touch-action: none; cursor: pointer; }
+.knob-base { width: 130px; height: 130px; border-radius: 50%; background: #1a2332; border: 3px solid #00b7ff; position: relative; touch-action: none; cursor: pointer; }
+.knob-ticks { position: absolute; inset: 0; }
+.tick { position: absolute; top: 50%; left: 50%; width: 2px; height: 8px; background: rgba(0,183,255,.45); border-radius: 1px; }
 .knob-handle { width: 100%; height: 100%; position: absolute; top: 0; left: 0; transition: transform 0.05s ease-out; }
-.knob-dot { width: 8px; height: 8px; background: #ffc107; border-radius: 50%; position: absolute; top: 10px; left: calc(50% - 4px); }
-.knob-readout { font-family: monospace; font-size: 1.1rem; color: #ffc107; margin: 0; }
+.knob-dot { width: 8px; height: 8px; background: #ffc107; border-radius: 50%; position: absolute; top: 12px; left: calc(50% - 4px); animation: dotGlow 1.6s ease-in-out infinite; }
+@keyframes dotGlow { 0%, 100% { box-shadow: 0 0 6px #ffc107; } 50% { box-shadow: 0 0 14px #ffc107, 0 0 4px #fff; } }
+.knob-readout { font-family: monospace; font-size: 1.1rem; color: #ffc107; margin: 0; transition: transform .1s ease; }
+.knob-readout.pulse { animation: readoutPulse .15s ease; }
+@keyframes readoutPulse { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
 
-/* Ejercicio 9: Lanzamiento */
+/* ---- Ejercicio 9: Lanzamiento ---- */
 .launch { display: flex; flex-direction: column; gap: 1rem; }
 .field { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; }
 .field input { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 0.5rem; border-radius: 6px; width: 120px; }
 .launch-track { height: 40px; background: rgba(0,0,0,0.4); border-radius: 20px; position: relative; display: flex; align-items: center; padding: 0 10px; overflow: hidden; }
-.probe { position: absolute; transition: left 0.1s linear; font-size: 1.2rem; }
+.probe { position: absolute; top: 50%; transform: translateY(-50%); font-size: 1.2rem; }
+.probe.trail-success { filter: drop-shadow(0 0 10px #39a900); animation: probeGlowCross .8s ease; }
+.probe.trail-success::before { content: ''; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); width: 60px; height: 4px; background: linear-gradient(90deg, transparent, #39a900); opacity: .85; }
+@keyframes probeGlowCross { 0% { filter: drop-shadow(0 0 2px #39a900); } 100% { filter: drop-shadow(0 0 14px #39a900); } }
+.probe.bounce-fail { filter: drop-shadow(0 0 8px #ff5252); animation: probeBounceFail .5s ease; }
+@keyframes probeBounceFail { 0% { transform: translateY(-50%) translateX(0); } 30% { transform: translateY(-50%) translateX(8px); } 60% { transform: translateY(-50%) translateX(-4px); } 100% { transform: translateY(-50%) translateX(0); } }
 .launch-target { position: absolute; right: 15px; font-size: 0.75rem; color: #ffc107; }
 .launch-result.success { color: #00ff66; }
 .launch-result.fail { color: #ff5252; }
 
-/* Botones de Acción */
+/* ---- Botones de Acción ---- */
 .eval-actions { display: flex; justify-content: space-between; margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem; }
 .btn-sec { background: rgba(255,255,255,0.08); border: none; color: #fff; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; }
 .btn-eng { background: #39a900; border: none; color: #fff; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: bold; cursor: pointer; }
 .btn-eng:disabled { opacity: 0.5; cursor: not-allowed; }
 .stop-btn { background: #ff5252; }
 
-/* Panel de Resultados */
+/* ---- Panel de Resultados ---- */
 .result-card { text-align: center; }
 .status-icon { font-size: 3rem; margin-bottom: 0.5rem; }
 .score-badge { display: inline-flex; flex-direction: column; padding: 0.75rem 1.5rem; border-radius: 12px; margin: 1rem 0; font-weight: bold; font-size: 1.5rem; }
