@@ -41,6 +41,18 @@
       </div>
     </div>
 
+    <!-- Caso Práctico Guiado (Paso a Paso) -->
+    <div class="guided-example-card" ref="exampleRef">
+      <div class="example-tag">💡 Caso Práctico Guiado</div>
+      <h3>¿Cómo calcular la aceleración de despegue?</h3>
+      <p>Si una sonda espacial aumenta su velocidad de <strong>4 m/s</strong> a <strong>18 m/s</strong> en un intervalo de <strong>4 segundos</strong>:</p>
+      <div class="mini-formula-steps">
+        <span>1. Sustituimos valores: a = (18 - 4) / 4</span>
+        <span>2. Resolvemos la diferencia: a = 14 / 4</span>
+        <span class="highlight-result">3. Resultado final: a = 3.5 m/s² (Aceleración positiva)</span>
+      </div>
+    </div>
+
     <!-- Fórmula + Laboratorio de Impulso Dinámico -->
     <div class="formula-section" ref="formulaSectionRef">
       <div class="formula-box">
@@ -53,8 +65,8 @@
           </span>
         </div>
         <p class="formula-desc">
-          <strong>a</strong> = aceleración · <strong>v<sub>f</sub></strong> = velocidad final ·
-          <strong>v<sub>0</sub></strong> = velocidad inicial · <strong>t</strong> = tiempo transcurrido.
+          <strong>a</strong> = aceleración (m/s²) · <strong>v<sub>f</sub></strong> = velocidad final (m/s) ·
+          <strong>v<sub>0</sub></strong> = velocidad inicial (m/s) · <strong>t</strong> = tiempo (s).
         </p>
       </div>
 
@@ -130,17 +142,17 @@ const explanationCards = [
   {
     icon: '⚡',
     title: '¿Qué es la Aceleración?',
-    text: 'Magnitud vectorial que indica la variación de la velocidad por unidad de tiempo. No solo importa qué tan rápido vas, sino cómo cambia esa velocidad.',
+    text: 'Magnitud vectorial que mide cómo cambia la velocidad en el tiempo. Un resultado positivo indica ganancia de velocidad; uno negativo, desaceleración.',
   },
   {
     icon: '📈',
     title: 'Gráficos Velocidad vs. Tiempo',
-    text: 'La pendiente de la línea en un gráfico velocidad-tiempo representa directamente la aceleración del objeto.',
+    text: 'La pendiente de la recta en el gráfico representa la aceleración. Una línea ascendente denota aumento de velocidad constante.',
   },
   {
     icon: '🌌',
-    title: 'Contexto Productivo Alienígena',
-    text: 'Aplicado en propulsores de naves interestelares, frenado gravitacional y sistemas automatizados de producción en colonias espaciales.',
+    title: 'Contexto de Ingeniería',
+    text: 'Fundamental para calcular la fuerza de empuje en propulsores espaciales y asegurar transiciones seguras en trayectorias orbitales.',
   },
 ]
 
@@ -151,6 +163,7 @@ let startX = 0
 
 const headerRef = ref(null)
 const cardsRef = ref([])
+const exampleRef = ref(null)
 const formulaSectionRef = ref(null)
 
 onMounted(() => {
@@ -170,10 +183,20 @@ onMounted(() => {
     ease: 'outElastic(1, .6)',
   })
 
+  if (exampleRef.value) {
+    animate(exampleRef.value, {
+      opacity: [0, 1],
+      translateY: [30, 0],
+      delay: 600,
+      duration: 1000,
+      ease: 'outQuad',
+    })
+  }
+
   animate(formulaSectionRef.value, {
     opacity: [0, 1],
     scale: [0.95, 1],
-    delay: 700,
+    delay: 800,
     duration: 1000,
     ease: 'outQuad',
   })
@@ -435,6 +458,57 @@ function runImpulse() {
   color: #b0c4de;
   line-height: 1.5;
   margin: 0;
+}
+
+/* Caso Práctico Guiado */
+.guided-example-card {
+  background: rgba(6, 15, 35, 0.75);
+  border: 1px solid rgba(0, 255, 204, 0.35);
+  border-radius: 14px;
+  padding: 1.5rem;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.example-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #00ffcc;
+  letter-spacing: 1.2px;
+}
+
+.guided-example-card h3 {
+  font-size: 1.1rem;
+  color: #ffffff;
+  margin: 0;
+}
+
+.guided-example-card p {
+  font-size: 0.88rem;
+  color: #b0c4de;
+  margin: 0;
+}
+
+.mini-formula-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  border-left: 3px solid #00ffcc;
+  font-size: 0.85rem;
+  color: #e2e8f0;
+  font-family: monospace;
+}
+
+.highlight-result {
+  color: #00ffcc;
+  font-weight: 700;
 }
 
 /* Fórmula con fondo translúcido */
