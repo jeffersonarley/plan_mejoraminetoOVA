@@ -1,13 +1,49 @@
-<template>
+ <template>
   <div class="intro-container">
     <!-- Encabezado -->
     <div class="intro-header">
-      <span class="badge-pill">Guía 1 · Cinemática</span>
+      <span class="badge-pill">Guía 1 · Ciencias Naturales y Física</span>
       <h2>Tema 3: Aceleración</h2>
-      <p class="intro-lead">Cómo cambia la velocidad en el tiempo — y por qué importa.</p>
+      <p class="intro-lead">
+        Comprende cómo cambia la velocidad de los cuerpos en el tiempo y su importancia en el estudio del movimiento.
+      </p>
     </div>
 
-    <!-- Pestañas: Contexto / Competencia con animación en los botones -->
+    <!-- Bloque de Teoría Fundamental -->
+    <div class="theory-intro-card">
+      <div class="theory-grid">
+        <div class="theory-item">
+          <span class="theory-icon">⚡</span>
+          <div>
+            <h4>Concepto y Unidades</h4>
+            <p>
+              La aceleración es una magnitud vectorial que mide la tasa de cambio de la velocidad respecto al tiempo. 
+              Su fórmula es 
+              <span class="formula-inline">
+                <span class="f-name">a</span> = 
+                <span class="f-fraction">
+                  <span class="f-num">v<sub>f</sub> − v<sub>0</sub></span>
+                  <span class="f-den">t</span>
+                </span>
+              </span>
+              y se mide en metros sobre segundo al cuadrado.
+            </p>
+          </div>
+        </div>
+        <div class="theory-item">
+          <span class="theory-icon">⚖️</span>
+          <div>
+            <h4>Rapidez vs. Aceleración</h4>
+            <p>
+              La <em>rapidez</em> indica qué tan aprisa se mueve un objeto en un instante, mientras que la 
+              <em>aceleración</em> describe <strong>qué tan rápido varía esa rapidez</strong> o la dirección de su trayectoria.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pestañas: Contexto / Competencia -->
     <div class="context-card">
       <div class="context-toggle" role="tablist" aria-label="Contexto del tema">
         <button
@@ -35,7 +71,7 @@
       </transition>
     </div>
 
-    <!-- Ruta formativa: tarjetas que giran al tocarlas -->
+    <!-- Ruta formativa -->
     <div class="roadmap-grid">
       <button
         v-for="(item, i) in roadmap"
@@ -62,9 +98,9 @@
 
     <!-- Llamado a la acción -->
     <div class="action-banner">
-      <h4>¿Listo para empezar?</h4>
+      <h4>¿Listo para explorar los contenidos teóricos?</h4>
       <router-link to="/nivel-2" class="btn-launch">
-        <span>Contenidos</span>
+        <span>Ver Contenidos Multimediales</span>
         <span class="arrow" aria-hidden="true">→</span>
       </router-link>
     </div>
@@ -79,24 +115,24 @@ const tabs = [
   {
     id: 'contexto',
     icon: '📍',
-    label: 'Contexto',
-    text: 'Rapidez y aceleración no son lo mismo: la aceleración mide qué tan rápido cambia la velocidad. Clave en transporte y control de movimiento.',
+    label: 'Contexto Social y Físico',
+    text: 'El estudio de la aceleración permite analizar fenómenos cotidianos del transporte, la seguridad vial y el comportamiento de los cuerpos bajo la influencia de fuerzas naturales.',
   },
   {
     id: 'competencia',
     icon: '⚙️',
     label: 'Competencia',
-    text: 'Aplicar magnitudes escalares y vectoriales de la cinemática, con énfasis en el cálculo de la aceleración.',
+    text: 'Aplicación de conocimientos de las ciencias naturales de acuerdo con situaciones del contexto productivo y social, utilizando magnitudes físicas escalares y vectoriales.',
   },
 ]
 
 const activeTab = ref(0)
 
 const roadmap = [
-  { step: '01', title: 'Introducción', detail: 'Objetivos y conceptos base del tema.' },
-  { step: '02', title: 'Contenidos', detail: 'Fórmulas y gráficos velocidad-tiempo.' },
-  { step: '03', title: 'Actividad', detail: 'Simulación interactiva con sliders.' },
-  { step: '04', title: 'Evaluación', detail: '10 problemas con vehículos de la región.' },
+  { step: '01', title: 'Introducción', detail: 'Objetivos, definición, unidades y diferencias conceptuales.' },
+  { step: '02', title: 'Contenidos', detail: 'Fórmulas matemáticas y análisis de gráficos velocidad-tiempo.' },
+  { step: '03', title: 'Actividad', detail: 'Práctica interactiva con sliders y simulación de movimiento.' },
+  { step: '04', title: 'Evaluación', detail: '10 problemas prácticos de aceleración con retroalimentación.' },
 ]
 
 const flipped = reactive(roadmap.map(() => false))
@@ -104,10 +140,8 @@ function toggleFlip(i) {
   flipped[i] = !flipped[i]
 }
 
-// Función para cambiar de pestaña y aplicar la animación elástica al botón clickeado
 function selectTab(i, event) {
   activeTab.value = i
-  
   const buttonElement = event.currentTarget
 
   animate(buttonElement, {
@@ -126,7 +160,6 @@ function selectTab(i, event) {
   gap: 1.75rem;
 }
 
-/* Encabezado */
 .intro-header {
   text-align: center;
   max-width: 700px;
@@ -140,16 +173,15 @@ function selectTab(i, event) {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 1.4px;
-  color: var(--accent-neon);
-  background: rgba(57, 255, 20, 0.1);
-  border: 1px solid rgba(57, 255, 20, 0.35);
+  color: #00ffcc;
+  background: rgba(0, 255, 204, 0.1);
+  border: 1px solid rgba(0, 255, 204, 0.35);
   border-radius: 50px;
   margin-bottom: 0.85rem;
-  box-shadow: 0 0 15px rgba(57, 255, 20, 0.15);
+  box-shadow: 0 0 15px rgba(0, 255, 204, 0.15);
 }
 
 .intro-header h2 {
-  font-family: var(--fuente-principal);
   font-size: clamp(1.7rem, 3.2vw, 2.4rem);
   font-weight: 800;
   color: #ffffff;
@@ -159,19 +191,99 @@ function selectTab(i, event) {
 
 .intro-lead {
   font-size: 1rem;
-  color: var(--texto-secundario);
+  color: #b0c4de;
   margin: 0;
   font-weight: 500;
 }
 
-/* Tarjeta de pestañas contexto/competencia (Glassmorphism) */
+.theory-intro-card {
+  padding: 1.25rem 1.5rem;
+  background: rgba(6, 15, 35, 0.65);
+  border: 1px solid rgba(0, 255, 204, 0.25);
+  border-radius: 14px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.theory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.theory-item {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+.theory-icon {
+  font-size: 1.5rem;
+  background: rgba(0, 255, 204, 0.1);
+  padding: 0.4rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 204, 0.2);
+}
+
+.theory-item h4 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.theory-item p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #b0c4de;
+  line-height: 1.6;
+}
+
+/* Fórmula compacta, elegante y fluida dentro del párrafo */
+.formula-inline {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  background: rgba(0, 255, 204, 0.08);
+  border: 1px solid rgba(0, 255, 204, 0.25);
+  border-radius: 6px;
+  padding: 0.1rem 0.45rem;
+  margin: 0 0.2rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.f-name {
+  color: #00ffcc;
+  margin-right: 0.3rem;
+}
+
+.f-fraction {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  vertical-align: middle;
+}
+
+.f-num {
+  padding: 0 0.1rem 0.05rem;
+  border-bottom: 1px solid #00ffcc;
+  color: #ffffff;
+}
+
+.f-den {
+  padding-top: 0.05rem;
+  color: #00ffcc;
+}
+
 .context-card {
   padding: 1.5rem;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radio-sm, 14px);
+  border-radius: 14px;
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2);
 }
 
@@ -210,14 +322,12 @@ function selectTab(i, event) {
   padding: 0.55rem 1rem;
   border: none;
   background: transparent;
-  font-family: var(--fuente-principal);
   font-size: 0.88rem;
   font-weight: 600;
-  color: var(--texto-secundario);
+  color: #b0c4de;
   cursor: pointer;
   border-radius: 999px;
   transition: color 0.3s ease;
-  transform-origin: center center;
 }
 
 .toggle-btn.is-active {
@@ -227,7 +337,7 @@ function selectTab(i, event) {
 
 .tab-panel {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   line-height: 1.6;
   color: #f8fafc;
 }
@@ -245,7 +355,6 @@ function selectTab(i, event) {
   transform: translateY(-6px);
 }
 
-/* Ruta formativa: tarjetas flip */
 .roadmap-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -260,7 +369,6 @@ function selectTab(i, event) {
   border: none;
   padding: 0;
   cursor: pointer;
-  font: inherit;
   text-align: left;
 }
 
@@ -285,7 +393,7 @@ function selectTab(i, event) {
   inset: 0;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  border-radius: var(--radio-sm, 14px);
+  border-radius: 14px;
   padding: 1.1rem;
   display: flex;
   flex-direction: column;
@@ -300,16 +408,14 @@ function selectTab(i, event) {
 }
 
 .step-num {
-  font-family: var(--fuente-codigo);
   font-size: 1.3rem;
   font-weight: 800;
-  color: var(--accent-neon);
-  text-shadow: 0 0 10px rgba(57, 255, 20, 0.4);
+  color: #00ffcc;
+  text-shadow: 0 0 10px rgba(0, 255, 204, 0.4);
 }
 
 .flip-front h4 {
   margin: 0.2rem 0 0.4rem;
-  font-family: var(--fuente-principal);
   font-size: 1rem;
   font-weight: 700;
   color: #ffffff;
@@ -317,7 +423,7 @@ function selectTab(i, event) {
 
 .tap-hint {
   font-size: 0.72rem;
-  color: var(--texto-secundario);
+  color: #b0c4de;
   font-weight: 600;
 }
 
@@ -336,7 +442,6 @@ function selectTab(i, event) {
   color: #e2e8f0;
 }
 
-/* Llamado a la acción */
 .action-banner {
   display: flex;
   align-items: center;
@@ -344,16 +449,15 @@ function selectTab(i, event) {
   flex-wrap: wrap;
   gap: 1.5rem;
   padding: 1.5rem 2rem;
-  background: linear-gradient(135deg, rgba(0, 119, 255, 0.2), rgba(57, 255, 20, 0.08));
+  background: linear-gradient(135deg, rgba(0, 119, 255, 0.2), rgba(0, 255, 204, 0.08));
   border: 1px solid rgba(0, 183, 255, 0.3);
-  border-radius: var(--radio-sm, 14px);
+  border-radius: 14px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .action-banner h4 {
   margin: 0;
   color: #fff;
-  font-family: var(--fuente-principal);
   font-size: 1.15rem;
   font-weight: 800;
 }
@@ -363,21 +467,20 @@ function selectTab(i, event) {
   align-items: center;
   gap: 0.75rem;
   padding: 0.85rem 1.75rem;
-  background: linear-gradient(135deg, #0077ff, #00b7ff);
-  color: #ffffff;
-  font-weight: 700;
+  background: linear-gradient(135deg, #0077ff, #00ffcc);
+  color: #060f23;
+  font-weight: 800;
   font-size: 0.95rem;
   text-decoration: none;
   border-radius: 12px;
-  box-shadow: 0 8px 25px rgba(0, 119, 255, 0.4);
+  box-shadow: 0 8px 25px rgba(0, 255, 204, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
 }
 
 .btn-launch:hover {
   transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 12px 30px rgba(0, 183, 255, 0.6);
-  background: linear-gradient(135deg, #0085ff, #00d2ff);
+  box-shadow: 0 12px 30px rgba(0, 255, 204, 0.5);
 }
 
 .arrow {
