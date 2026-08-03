@@ -1,4 +1,4 @@
-<template>
+ <template>
   <div class="acceleration-container">
     <!-- Encabezado -->
     <header class="acc__header">
@@ -32,12 +32,12 @@
           <line x1="550" y1="110" x2="550" y2="190" stroke="rgba(56, 189, 248, 0.3)" stroke-dasharray="2,2" />
           <text x="550" y="105" text-anchor="middle" class="scale-label">500 m (Despegue)</text>
 
-          <!-- Nave espacial animada -->
-          <g :transform="`translate(${vehicleX}, 125)`" class="vehicle-group">
+          <!-- Nave espacial animada con cinemática real -->
+          <g :transform="`translate(${posicionXNave}, 125)`" class="vehicle-group">
             <!-- Cuerpo de la nave -->
             <path d="M 0 15 L 45 5 L 60 15 L 45 25 Z" fill="#38bdf8" />
             <!-- Propulsor / Fuego dinámico según aceleración -->
-            <polygon points="0,12 -15,15 0,18" fill="#f97316" v-if="progress > 0 && progress < 1" />
+            <polygon points="0,12 -15,15 0,18" fill="#f97316" v-if="progreso > 0 && progreso < 1" />
             <!-- Cabina -->
             <ellipse cx="30" cy="15" rx="8" ry="4" fill="#030712" />
             <!-- Alas -->
@@ -54,17 +54,17 @@
           
           <label class="field">
             <span>Velocidad Inicial ($v_0$): <strong>{{ v0 }} m/s</strong></span>
-            <input type="range" min="0" max="20" step="1" v-model.number="v0" @input="runSimulation" />
+            <input type="range" min="0" max="20" step="1" v-model.number="v0" @input="ejecutarSimulacion" />
           </label>
 
           <label class="field">
             <span>Velocidad Final ($v_f$): <strong>{{ vf }} m/s</strong></span>
-            <input type="range" min="0" max="60" step="1" v-model.number="vf" @input="runSimulation" />
+            <input type="range" min="0" max="60" step="1" v-model.number="vf" @input="ejecutarSimulacion" />
           </label>
 
           <label class="field">
-            <span>Tiempo de Aceleración ($t$): <strong>{{ time }} s</strong></span>
-            <input type="range" min="1" max="15" step="1" v-model.number="time" @input="runSimulation" />
+            <span>Tiempo de Aceleración ($t$): <strong>{{ tiempo }} s</strong></span>
+            <input type="range" min="1" max="15" step="1" v-model.number="tiempo" @input="ejecutarSimulacion" />
           </label>
         </div>
 
@@ -77,29 +77,30 @@
           <div class="results-grid">
             <div class="t-box">
               <dt>Aceleración ($a$)</dt>
-              <dd>{{ acceleration.toFixed(2) }} m/s²</dd>
+              <dd>{{ aceleracion.toFixed(2) }} m/s²</dd>
             </div>
             <div class="t-box">
               <dt>Distancia Total</dt>
-              <dd>{{ distance.toFixed(1) }} m</dd>
+              <dd>{{ distancia.toFixed(1) }} m</dd>
             </div>
           </div>
 
-          <button class="btn-eng run" @click="playAnimation">
+          <button class="btn-eng run" @click="reproducirAnimacion">
             <span>🚀 Lanzar Propulsión</span>
           </button>
         </div>
       </section>
     </div>
 
-    <!-- Navegación corregida para apuntar a la evaluación -->
+    <!-- Navegación corregida -->
     <footer class="navigation-footer">
-      < 
-      <!-- Ruta apuntando a la vista de evaluación (Modifica '/evaluacion' si tu ruta en el router tiene otro path ej: '/step3-evaluacion') -->
-     <router-link to="/nivel-4" class="btn-nav primary">
-  <span>Ir a la Evaluación</span>
-  <span class="arrow">→</span>
-</router-link>
+      <router-link to="/nivel-2" class="btn-nav secondary">
+        <span>← Volver a Contenidos</span>
+      </router-link>
+      <router-link to="/nivel-4" class="btn-nav primary">
+        <span>Ir a la Evaluación</span>
+        <span class="arrow">→</span>
+      </router-link>
     </footer>
   </div>
 </template>
@@ -109,47 +110,52 @@ import { ref, computed } from 'vue'
 
 const v0 = ref(0)
 const vf = ref(30)
-const time = ref(5)
+const tiempo = ref(5)
 
-const progress = ref(0)
-let animationId = null
+const progreso = ref(0)
+let idAnimacion = null
 
-const acceleration = computed(() => {
-  if (time.value <= 0) return 0
-  return (vf.value - v0.value) / time.value
+const aceleracion = computed(() => {
+  if (tiempo.value <= 0) return 0
+  return (vf.value - v0.value) / tiempo.value
 })
 
-const distance = computed(() => {
-  return v0.value * time.value + 0.5 * acceleration.value * (time.value ** 2)
+const distancia = computed(() => {
+  return v0.value * tiempo.value + 0.5 * aceleracion.value * (tiempo.value ** 2)
 })
 
-const vehicleX = computed(() => {
-  return 50 + progress.value * 450
+// Cinemática real: x(t) = v₀·t + 0.5·a·t² mapeado a los píxeles de la pista (50px a 500px)
+const posicionXNave = computed(() => {
+  const tActual = progreso.value * tiempo.value
+  const distanciaActual = v0.value * tActual + 0.5 * aceleracion.value * (tActual ** 2)
+  const distanciaMaxima = v0.value * tiempo.value + 0.5 * aceleracion.value * (tiempo.value ** 2) || 1
+  const fraccionRecorrida = Math.min(Math.max(distanciaActual / distanciaMaxima, 0), 1)
+  return 50 + fraccionRecorrida * 450
 })
 
-function runSimulation() {
+function ejecutarSimulacion() {
   if (vf.value < v0.value) {
     vf.value = v0.value
   }
 }
 
-function playAnimation() {
-  progress.value = 0
-  let startTimestamp = null
-  const duration = time.value * 1000
+function reproducirAnimacion() {
+  progreso.value = 0
+  let marcaTiempoInicio = null
+  const duracion = tiempo.value * 1000
 
-  function step(timestamp) {
-    if (!startTimestamp) startTimestamp = timestamp
-    const elapsed = timestamp - startTimestamp
-    progress.value = Math.min(elapsed / duration, 1)
+  function paso(marcaTiempo) {
+    if (!marcaTiempoInicio) marcaTiempoInicio = marcaTiempo
+    const transcurrido = marcaTiempo - marcaTiempoInicio
+    progreso.value = Math.min(transcurrido / duracion, 1)
 
-    if (progress.value < 1) {
-      animationId = requestAnimationFrame(step)
+    if (progreso.value < 1) {
+      idAnimacion = requestAnimationFrame(paso)
     }
   }
 
-  if (animationId) cancelAnimationFrame(animationId)
-  animationId = requestAnimationFrame(step)
+  if (idAnimacion) cancelAnimationFrame(idAnimacion)
+  idAnimacion = requestAnimationFrame(paso)
 }
 </script>
 
@@ -322,7 +328,6 @@ function playAnimation() {
   transform: translateY(-1px);
 }
 
-/* Estilos de la barra de navegación inferior */
 .navigation-footer {
   display: flex;
   justify-content: space-between;

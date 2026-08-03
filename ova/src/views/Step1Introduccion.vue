@@ -18,7 +18,7 @@
             <h4>Concepto y Unidades</h4>
             <p>
               La aceleración es una magnitud vectorial que mide la tasa de cambio de la velocidad respecto al tiempo. 
-              Su fórmula es 
+              <strong>Esto importa porque</strong> nos permite entender cómo y con qué rapidez los objetos varían su estado de movimiento en situaciones reales. Su fórmula es 
               <span class="formula-inline">
                 <span class="f-name">a</span> = 
                 <span class="f-fraction">
@@ -173,7 +173,7 @@ function selectTab(i, event) {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 1.4px;
-  color: #00ffcc;
+  color: var(--color-primario, #00ffcc);
   background: rgba(0, 255, 204, 0.1);
   border: 1px solid rgba(0, 255, 204, 0.35);
   border-radius: 50px;
@@ -239,7 +239,6 @@ function selectTab(i, event) {
   line-height: 1.6;
 }
 
-/* Fórmula compacta, elegante y fluida dentro del párrafo */
 .formula-inline {
   display: inline-flex;
   align-items: center;
@@ -254,7 +253,7 @@ function selectTab(i, event) {
 }
 
 .f-name {
-  color: #00ffcc;
+  color: var(--color-primario, #00ffcc);
   margin-right: 0.3rem;
 }
 
@@ -269,13 +268,13 @@ function selectTab(i, event) {
 
 .f-num {
   padding: 0 0.1rem 0.05rem;
-  border-bottom: 1px solid #00ffcc;
+  border-bottom: 1px solid var(--color-primario, #00ffcc);
   color: #ffffff;
 }
 
 .f-den {
   padding-top: 0.05rem;
-  color: #00ffcc;
+  color: var(--color-primario, #00ffcc);
 }
 
 .context-card {
@@ -410,7 +409,7 @@ function selectTab(i, event) {
 .step-num {
   font-size: 1.3rem;
   font-weight: 800;
-  color: #00ffcc;
+  color: var(--color-primario, #00ffcc);
   text-shadow: 0 0 10px rgba(0, 255, 204, 0.4);
 }
 
@@ -467,7 +466,7 @@ function selectTab(i, event) {
   align-items: center;
   gap: 0.75rem;
   padding: 0.85rem 1.75rem;
-  background: linear-gradient(135deg, #0077ff, #00ffcc);
+  background: linear-gradient(135deg, #0077ff, var(--color-primario, #00ffcc));
   color: #060f23;
   font-weight: 800;
   font-size: 0.95rem;
